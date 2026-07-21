@@ -64,6 +64,8 @@ internal sealed class ControlBoxPanel : DraggablePanel
             v => settings.ShowDiagonalLines = v, nameof(AlignSettings.ShowDiagonalLines));
         AddCheckRow("Show horizontal lines", () => settings.ShowHorizontalLines,
             v => settings.ShowHorizontalLines = v, nameof(AlignSettings.ShowHorizontalLines));
+        AddCheckRow("Show vertical lines", () => settings.ShowVerticalLines,
+            v => settings.ShowVerticalLines = v, nameof(AlignSettings.ShowVerticalLines));
         AddCheckRow("Antialiasing", () => settings.Antialiasing,
             v => settings.Antialiasing = v, nameof(AlignSettings.Antialiasing));
         AddNumericRow("Line spacing", 50, 960, 0,

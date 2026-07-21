@@ -113,6 +113,8 @@ internal sealed class OverlayForm : Form
                 g.DrawLine(pen, s.X1, s.Y1, s.X2, s.Y2);
         }
 
+        bool horizontalVisible = false;
+        bool verticalVisible = false;
         if (_settings.ShowHorizontalLines)
         {
             int referenceCenterY = _coordinator.ReferenceCenterY;
@@ -120,11 +122,26 @@ internal sealed class OverlayForm : Form
             foreach (LineSegment s in LineGeometry.HorizontalSegments(
                          referenceCenterY, _settings.LineSpacing, _monitor.PositionY, _monitor.ScreenWidth))
                 g.DrawLine(pen, s.X1, s.Y1, s.X2, s.Y2);
-
-            if (!LineGeometry.AnyHorizontalSegmentVisible(referenceCenterY, _settings.LineSpacing,
-                    _monitor.PositionY, _monitor.ScreenWidth, _monitor.ScreenHeight))
-                DrawOffscreenHint(g);
+            horizontalVisible = LineGeometry.AnyHorizontalSegmentVisible(referenceCenterY,
+                _settings.LineSpacing, _monitor.PositionY, _monitor.ScreenWidth, _monitor.ScreenHeight);
         }
+
+        if (_settings.ShowVerticalLines)
+        {
+            int referenceCenterX = _coordinator.ReferenceCenterX;
+            using var pen = new Pen(Color.Black, _settings.LineThickness);
+            foreach (LineSegment s in LineGeometry.VerticalSegments(
+                         referenceCenterX, _settings.LineSpacing, _monitor.PositionX, _monitor.ScreenHeight))
+                g.DrawLine(pen, s.X1, s.Y1, s.X2, s.Y2);
+            verticalVisible = LineGeometry.AnyVerticalSegmentVisible(referenceCenterX,
+                _settings.LineSpacing, _monitor.PositionX, _monitor.ScreenHeight, _monitor.ScreenWidth);
+        }
+
+        // Never a silent white overlay: hint whenever lines are enabled but none of
+        // them actually reach this panel.
+        if ((_settings.ShowHorizontalLines || _settings.ShowVerticalLines)
+            && !horizontalVisible && !verticalVisible)
+            DrawOffscreenHint(g);
 
         // Selection = OS focus. A badge at top-center instead of an edge frame:
         // the frame sat exactly where line continuity is judged across the bezel.
@@ -179,35 +196,51 @@ internal sealed class OverlayForm : Form
         using var font = new Font("Segoe UI", 11f * scale);
         using var brush = new SolidBrush(Color.FromArgb(120, 120, 120));
         using var format = new StringFormat { Alignment = StringAlignment.Center };
-        g.DrawString(
-            "The alignment lines lie outside this monitor's visible area.\n"
-            + "Lines follow the selected screen's row — click the screen you want to align.",
-            font, brush, new PointF(ClientSize.Width / 2f, ClientSize.Height * 0.68f), format);
+        string hint = "The alignment lines lie outside this monitor's visible area.\n"
+            + "Lines follow the selected screen's row and column — click the screen you want to align.";
+        if (!_settings.ShowVerticalLines)
+            hint += "\nFor screens stacked above/below each other, enable vertical lines in the Control Box.";
+        g.DrawString(hint, font, brush,
+            new PointF(ClientSize.Width / 2f, ClientSize.Height * 0.68f), format);
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        // Modifier-insensitive, like the original (Ctrl+Up still moves).
+        // Vertical keys are modifier-insensitive, like the original (Ctrl+Up still
+        // moves). Horizontal keys (M6) use Shift for the 10 px step since
+        // PageUp/PageDown are taken by the vertical axis.
+        int horizontalStep = (keyData & Keys.Shift) != 0 ? 10 : 1;
         switch (keyData & Keys.KeyCode)
         {
             case Keys.Escape:
                 _coordinator.RequestClose();
                 return true;
-            case Keys.Up or Keys.Down or Keys.PageUp or Keys.PageDown when _monitor.IsPrimary:
+            case Keys.Up or Keys.Down or Keys.PageUp or Keys.PageDown or Keys.Left or Keys.Right
+                when _monitor.IsPrimary:
                 // Pass through on the primary, faithful to the original — this is what
                 // keeps arrow keys working inside the control box's numeric fields.
                 return base.ProcessCmdKey(ref msg, keyData);
             case Keys.Up:
-                _coordinator.MoveMonitor(_monitor, +1);
+                _coordinator.MoveMonitor(_monitor, 0, +1);
                 return true;
             case Keys.Down:
-                _coordinator.MoveMonitor(_monitor, -1);
+                _coordinator.MoveMonitor(_monitor, 0, -1);
                 return true;
             case Keys.PageUp:
-                _coordinator.MoveMonitor(_monitor, +10);
+                _coordinator.MoveMonitor(_monitor, 0, +10);
                 return true;
             case Keys.PageDown:
-                _coordinator.MoveMonitor(_monitor, -10);
+                _coordinator.MoveMonitor(_monitor, 0, -10);
+                return true;
+            // Sign convention mirrors the vertical axis: the LINE follows the key
+            // (Left = +deltaX shrinks local x = ref − posX, lines move left), while
+            // the monitor itself moves the opposite way in Windows-settings terms —
+            // exactly like Up (+deltaY) visually moving the lines up.
+            case Keys.Left:
+                _coordinator.MoveMonitor(_monitor, +horizontalStep, 0);
+                return true;
+            case Keys.Right:
+                _coordinator.MoveMonitor(_monitor, -horizontalStep, 0);
                 return true;
             default:
                 return base.ProcessCmdKey(ref msg, keyData);

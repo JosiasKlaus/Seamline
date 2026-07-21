@@ -71,13 +71,19 @@ public sealed class AlignController
     /// Refused for the primary monitor, outside an aligning session, and for
     /// monitors that are not part of the frozen session set.
     /// </summary>
-    public bool TryMoveBy(string deviceName, int deltaY)
+    public bool TryMoveBy(string deviceName, int deltaY) => TryMove(deviceName, 0, deltaY);
+
+    /// <summary>2D variant: horizontal deltas serve the stacked-layout alignment.
+    /// The UI maps Left=+1/Right=−1 so the drawn lines follow the key
+    /// (local x = reference − PositionX), mirroring how Up=+1 moves lines up.</summary>
+    public bool TryMove(string deviceName, int deltaX, int deltaY)
     {
         if (State != AlignSessionState.Aligning)
             return false;
         MonitorInfo? monitor = _session.FirstOrDefault(e => e.Monitor.DeviceName == deviceName).Monitor;
         if (monitor is null || monitor.IsPrimary)
             return false;
+        monitor.PositionX += deltaX;
         monitor.PositionY += deltaY;
         return true;
     }

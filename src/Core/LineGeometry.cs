@@ -32,6 +32,38 @@ public static class LineGeometry
         ];
     }
 
+    /// <summary>
+    /// Vertical alignment lines for stacked layouts, mirroring the horizontal set:
+    /// mid column spans the full height; the left/right columns (± spacing) are stubs
+    /// of height/5 anchored at the top and bottom edges. Local x = referenceCenterX −
+    /// PositionX, so increasing PositionX moves the lines left on screen — the UI maps
+    /// Left=+1 so the lines follow the key, mirroring the horizontal set's Up=+1.
+    /// Order: mid, left-top, left-bottom, right-top, right-bottom.
+    /// </summary>
+    public static IReadOnlyList<LineSegment> VerticalSegments(
+        int referenceCenterX, int lineSpacing, int monitorPositionX, int screenHeight)
+    {
+        int xMid = referenceCenterX - monitorPositionX;
+        int xLeft = referenceCenterX - lineSpacing - monitorPositionX;
+        int xRight = referenceCenterX + lineSpacing - monitorPositionX;
+        int stub = screenHeight / 5;
+        return
+        [
+            new LineSegment(xMid, 0, xMid, screenHeight),
+            new LineSegment(xLeft, 0, xLeft, stub),
+            new LineSegment(xLeft, screenHeight - stub, xLeft, screenHeight),
+            new LineSegment(xRight, 0, xRight, stub),
+            new LineSegment(xRight, screenHeight - stub, xRight, screenHeight),
+        ];
+    }
+
+    /// <summary>False when every vertical reference line falls outside the monitor's
+    /// visible width — the case for monitors in a different column than the reference.</summary>
+    public static bool AnyVerticalSegmentVisible(
+        int referenceCenterX, int lineSpacing, int monitorPositionX, int screenHeight, int screenWidth)
+        => VerticalSegments(referenceCenterX, lineSpacing, monitorPositionX, screenHeight)
+            .Any(s => s.X1 >= 0 && s.X1 < screenWidth);
+
     /// <summary>Two corner-to-corner diagonals.</summary>
     public static IReadOnlyList<LineSegment> DiagonalSegments(int width, int height) =>
     [

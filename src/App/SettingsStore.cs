@@ -14,7 +14,8 @@ internal static class SettingsStore
         bool Antialiasing,
         bool ShowInfoBox,
         int LineSpacing,
-        float LineThickness);
+        float LineThickness,
+        bool ShowVerticalLines = false); // added in M6; absent in older files
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -33,6 +34,7 @@ internal static class SettingsStore
             settings.ShowCursorPosition = persisted.ShowCursorPosition;
             settings.ShowDiagonalLines = persisted.ShowDiagonalLines;
             settings.ShowHorizontalLines = persisted.ShowHorizontalLines;
+            settings.ShowVerticalLines = persisted.ShowVerticalLines;
             settings.Antialiasing = persisted.Antialiasing;
             settings.ShowInfoBox = persisted.ShowInfoBox;
             settings.LineSpacing = Math.Clamp(persisted.LineSpacing, 50, 960);
@@ -51,7 +53,8 @@ internal static class SettingsStore
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             var persisted = new PersistedSettings(
                 settings.ShowCursorPosition, settings.ShowDiagonalLines, settings.ShowHorizontalLines,
-                settings.Antialiasing, settings.ShowInfoBox, settings.LineSpacing, settings.LineThickness);
+                settings.Antialiasing, settings.ShowInfoBox, settings.LineSpacing, settings.LineThickness,
+                settings.ShowVerticalLines);
             File.WriteAllText(FilePath,
                 JsonSerializer.Serialize(persisted, new JsonSerializerOptions { WriteIndented = true }));
         }

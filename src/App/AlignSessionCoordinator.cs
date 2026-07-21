@@ -17,6 +17,7 @@ internal sealed class AlignSessionCoordinator
     private readonly MonitorLayout _layout;
     private readonly List<OverlayForm> _overlays = [];
     private MonitorInfo? _referenceMonitor;
+    private MonitorInfo? _columnReferenceMonitor;
     private bool _closingOverlays;
 
     public AlignSessionCoordinator(AlignController controller, MonitorLayout layout, bool persistSettings = true)
@@ -43,20 +44,27 @@ internal sealed class AlignSessionCoordinator
 
     internal bool IsClosingOverlays => _closingOverlays;
 
-    /// <summary>Virtual-screen center of the current alignment reference
-    /// (see AlignmentReference — resolved on overlay selection).</summary>
+    /// <summary>Virtual-screen center of the current row reference for the
+    /// horizontal lines (see AlignmentReference — resolved on overlay selection).</summary>
     internal int ReferenceCenterY => AlignmentReference.CenterY(
         _referenceMonitor ?? _layout.PrimaryMonitor ?? _layout.Monitors[0]);
 
-    /// <summary>An overlay was clicked/focused: re-resolve the line reference for it.</summary>
+    /// <summary>Virtual-screen center of the current column reference for the
+    /// vertical (stacked-layout) lines.</summary>
+    internal int ReferenceCenterX => AlignmentReference.CenterX(
+        _columnReferenceMonitor ?? _layout.PrimaryMonitor ?? _layout.Monitors[0]);
+
+    /// <summary>An overlay was clicked/focused: re-resolve both line references for it.</summary>
     internal void NotifyOverlaySelected(MonitorInfo monitor)
     {
         if (_controller.State == AlignSessionState.Idle || !_layout.TryGet(monitor.DeviceName, out _))
             return;
-        MonitorInfo resolved = AlignmentReference.Resolve(monitor, _layout.Monitors);
-        if (!ReferenceEquals(resolved, _referenceMonitor))
+        MonitorInfo row = AlignmentReference.Resolve(monitor, _layout.Monitors);
+        MonitorInfo column = AlignmentReference.ResolveColumn(monitor, _layout.Monitors);
+        if (!ReferenceEquals(row, _referenceMonitor) || !ReferenceEquals(column, _columnReferenceMonitor))
         {
-            _referenceMonitor = resolved;
+            _referenceMonitor = row;
+            _columnReferenceMonitor = column;
             InvalidateOverlays();
         }
     }
@@ -68,6 +76,7 @@ internal sealed class AlignSessionCoordinator
 
         _controller.StartSession();
         _referenceMonitor = _layout.PrimaryMonitor;
+        _columnReferenceMonitor = _layout.PrimaryMonitor;
         foreach (MonitorInfo monitor in _layout.Monitors)
         {
             var overlay = new OverlayForm(this, monitor, _controller.Settings!);
@@ -82,8 +91,8 @@ internal sealed class AlignSessionCoordinator
         (firstSecondary ?? _overlays.FirstOrDefault())?.Activate();
     }
 
-    public void MoveMonitor(MonitorInfo monitor, int deltaY)
-        => _controller.TryMoveBy(monitor.DeviceName, deltaY);
+    public void MoveMonitor(MonitorInfo monitor, int deltaX, int deltaY)
+        => _controller.TryMove(monitor.DeviceName, deltaX, deltaY);
 
     /// <summary>Escape or the Close button: abort with in-memory rollback.</summary>
     public void RequestClose()
