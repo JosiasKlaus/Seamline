@@ -145,13 +145,13 @@ The original had *zero* DPI code and worked only because Qt's platform plugin de
 Port these exactly. Items marked ⚠ are the non-obvious ones AI assistants will "helpfully" get wrong.
 
 ### Model & data
-- [ ] 10 monitor fields: DeviceName (write-once, unique key), MonitorName, FriendlyMonitorName, DisplayAdapter, ScreenWidth, ScreenHeight, PositionX, PositionY, Orientation, IsPrimary.
+- [x] 10 monitor fields: DeviceName (write-once, unique key), MonitorName, FriendlyMonitorName, DisplayAdapter, ScreenWidth, ScreenHeight, PositionX, PositionY, Orientation, IsPrimary.
 - [x] Orientation enum values 0/1/2/3 numerically = `DMDO_DEFAULT/90/180/270`.
 - [x] Positions are physical-pixel virtual-screen coordinates; primary top-left = (0,0); negatives valid and written verbatim.
-- [ ] Setting a property to its current value is a silent no-op (equality suppression).
-- [ ] Every effective change raises change notification; snapshot restore goes through setters so the UI repaints.
-- [ ] Duplicate `DeviceName` add throws; layout ordering = sort by `(PositionX, PositionY)`.
-- [ ] ⚠ Hit-test: inclusive on **all four** edges; shared-edge point resolves to first monitor in insertion order.
+- [x] Setting a property to its current value is a silent no-op (equality suppression).
+- [x] Every effective change raises change notification; snapshot restore goes through setters so the UI repaints.
+- [x] Duplicate `DeviceName` add throws; layout ordering = sort by `(PositionX, PositionY)`.
+- [x] ⚠ Hit-test: inclusive on **all four** edges; shared-edge point resolves to first monitor in insertion order.
 - [x] Virtual-screen offset/size always queried live via `GetSystemMetrics(76/77/78/79)`, never computed from the model.
 
 ### Interop
@@ -160,7 +160,7 @@ Port these exactly. Items marked ⚠ are the non-obvious ones AI assistants will
 - [x] ⚠ Geometry from `ENUM_REGISTRY_SETTINGS (-2)` on **both** read and write paths.
 - [x] ⚠ Stage: read registry DEVMODE, set `dmPosition = (x,y)`, `dmFields = DM_POSITION` (**assignment, not OR** — OR-ing re-applies stale mode fields), call with `CDS_UPDATEREGISTRY | CDS_GLOBAL | CDS_NORESET` (0x10000009), hwnd/lParam NULL.
 - [x] Commit: single `ChangeDisplaySettingsEx(NULL, NULL, NULL, 0, NULL)` applies all staged monitors in one atomic modeset. **Never apply one-at-a-time non-deferred** — transient invalid layouts get rejected by Windows.
-- [ ] Primary never moved; `CDS_SET_PRIMARY` never used. *(CDS_SET_PRIMARY: verified never used. "Primary never moved" is enforced by the CLI harness today; tick once AlignController enforces it in M2/M4.)*
+- [x] Primary never moved; `CDS_SET_PRIMARY` never used. *(AlignController.TryMoveBy refuses the primary, the CLI harness refuses `--move` on it, and CDS_SET_PRIMARY is never used.)*
 - [x] `DISP_CHANGE_SUCCESSFUL == 0` checked on every stage and the commit (deviation: original ignored them).
 
 ### Alignment session
@@ -168,7 +168,7 @@ Port these exactly. Items marked ⚠ are the non-obvious ones AI assistants will
 - [ ] Layer z-order and defaults: diagonals z1 hidden, horizontal lines z2 visible, info box z3 visible, control box z4; checkboxes toggle across **all** overlays simultaneously.
 - [ ] Line math: refs from primary height — `mid = h/2`, `over = mid − spacing`, `under = mid + spacing`; local y = ref − PositionY; mid full-width; over/under stubs of `width/5` from each edge; defaults spacing **100**, thickness **3**.
 - [ ] ⚠ Keys: Up `+1`, Down `−1`, PageUp `+10`, PageDown `−10` on PositionY; **Up increases PositionY yet moves lines up on screen** (because local y = ref − PositionY). Ignored on primary. Escape = abort + in-memory rollback. Wheel swallowed. Other keys no-ops.
-- [ ] Session snapshots captured at session start; Escape/Close/Reset all restore from those snapshots **in memory only** — no OS write.
+- [x] Session snapshots captured at session start; Escape/Close/Reset all restore from those snapshots **in memory only** — no OS write.
 - [ ] Reset keeps overlays open; Close/Escape end the session.
 - [ ] Apply: stage every monitor → commit → `LayoutChanged` (overview + overlay geometry update) → modal rollback dialog.
 - [ ] Rollback dialog: 15 s countdown, 1000 ms tick, Yes/No, **No default**, no close button, topmost, auto-No at zero. On No/timeout: restore every snapshot, re-stage, re-commit (full OS revert). Overlays close afterwards regardless of answer.
@@ -253,7 +253,10 @@ Publish profile (`-r win-x64 --self-contained -p:PublishSingleFile=true -p:Enabl
 8. **Overview transform computed from scratch each paint**; border-rect bottom-edge bug fixed.
 9. **Embedded resources** instead of CWD-relative paths.
 10. **Enumeration robustness** (from M1 review): `QueryDisplayConfig` retried on `ERROR_INSUFFICIENT_BUFFER`; friendly-name join case-insensitive (device-interface paths are case-insensitive identifiers); one `MonitorInfo` per adapter so GDI clone mode can't produce duplicate `DeviceName` keys; a device without a readable registry mode skips that adapter's remaining monitors instead of aborting discovery (original semantics).
-11. **Small config persistence** (only if it costs <½ day in M4): remember `AlignSettings` in `%APPDATA%\Seamline\settings.json` via `System.Text.Json`. Everything else — localization, horizontal alignment, hot-plug, tray icon — is explicitly *out*.
+11. **Pending-edit vs applied-layout events split** (from M2 review): the original fired `layout_changed` only after an OS apply. `MonitorLayout.LayoutChanged` keeps that meaning (membership changes + post-apply notify); per-monitor in-memory edits raise `MonitorChanged` instead. Overlay/overview *geometry* must bind to `LayoutChanged` only, so windows never move on mere keypresses; line *repaints* bind to `MonitorChanged`.
+12. **Apply failure policy** (original ignored all `DISP_CHANGE` results and always showed the dialog): on any stage/commit failure the rollback dialog is skipped, the registry is auto-restored from the session snapshots (best effort — the revert commit is skipped if a re-stage fails, surfacing residue in `ApplyOutcome.AutoRevert`), and the session stays in Aligning with the user's edits intact.
+13. **Defensive session invalidation + shutdown**: any layout membership change during a session (hot-plug re-enumeration) restores known monitor instances in memory and ends the session with no OS writes; sessions are generation-tagged so re-entrant teardown can never end one twice. A membership change arriving while Apply is mid-backend-call (`ChangeDisplaySettingsEx` dispatches `WM_DISPLAYCHANGE` synchronously) is deferred and processed when the backend returns — the session ends instead of entering Confirming. `AlignController.Shutdown()` is a no-throw teardown: no-op when Idle, in-memory abort when Aligning, full OS revert when Confirming (the dialog's default answer); in `RevertApplied` the OS revert is staged from the snapshots *before* the in-memory restore so a throwing UI observer cannot skip it.
+14. **Small config persistence** (only if it costs <½ day in M4): remember `AlignSettings` in `%APPDATA%\Seamline\settings.json` via `System.Text.Json`. Everything else — localization, horizontal alignment, hot-plug, tray icon — is explicitly *out*.
 
 Not carried over (dead weight): sync-state machinery, `from_memento`, `NestedProperties`, unused exception types, unused `GetMonitorInfo`/`EnumDisplayMonitors` bindings, the three-mode signal-connection enum.
 

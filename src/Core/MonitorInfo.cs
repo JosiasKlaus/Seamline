@@ -1,13 +1,10 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-
 namespace Seamline.Core;
 
 /// <summary>
 /// One attached display. Positions are physical-pixel virtual-screen coordinates:
 /// the primary monitor's top-left corner is (0,0) and negative values are valid.
 /// </summary>
-public sealed class MonitorInfo : INotifyPropertyChanged
+public sealed class MonitorInfo : ObservableObject
 {
     private string _monitorName = "";
     private string _friendlyMonitorName = "";
@@ -18,8 +15,6 @@ public sealed class MonitorInfo : INotifyPropertyChanged
     private int _positionY;
     private MonitorOrientation _orientation;
     private bool _isPrimary;
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>Win32 adapter device name (e.g. \\.\DISPLAY1) — the repositioning identity.</summary>
     public required string DeviceName { get; init; }
@@ -34,28 +29,29 @@ public sealed class MonitorInfo : INotifyPropertyChanged
     public MonitorOrientation Orientation { get => _orientation; set => Set(ref _orientation, value); }
     public bool IsPrimary { get => _isPrimary; set => Set(ref _isPrimary, value); }
 
-    /// <summary>Subscribes to changes of a single property; dispose to unsubscribe.</summary>
-    public IDisposable WhenChanged(string propertyName, Action handler)
-    {
-        PropertyChangedEventHandler subscription = (_, e) =>
-        {
-            if (e.PropertyName == propertyName)
-                handler();
-        };
-        PropertyChanged += subscription;
-        return new Unsubscriber(this, subscription);
-    }
+    public MonitorSnapshot CreateSnapshot() => new(
+        DeviceName, MonitorName, FriendlyMonitorName, DisplayAdapter,
+        ScreenWidth, ScreenHeight, PositionX, PositionY, Orientation, IsPrimary);
 
-    private void Set<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    /// <summary>
+    /// Restores all mutable state from a snapshot, going through the property setters
+    /// so PropertyChanged fires and the UI repaints — this is what makes rollback
+    /// visually snap back.
+    /// </summary>
+    public void Restore(in MonitorSnapshot snapshot)
     {
-        if (EqualityComparer<T>.Default.Equals(field, value))
-            return;
-        field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+        if (snapshot.DeviceName != DeviceName)
+            throw new ArgumentException(
+                $"Snapshot of '{snapshot.DeviceName}' cannot be restored onto '{DeviceName}'.", nameof(snapshot));
 
-    private sealed class Unsubscriber(MonitorInfo owner, PropertyChangedEventHandler handler) : IDisposable
-    {
-        public void Dispose() => owner.PropertyChanged -= handler;
+        MonitorName = snapshot.MonitorName;
+        FriendlyMonitorName = snapshot.FriendlyMonitorName;
+        DisplayAdapter = snapshot.DisplayAdapter;
+        ScreenWidth = snapshot.ScreenWidth;
+        ScreenHeight = snapshot.ScreenHeight;
+        PositionX = snapshot.PositionX;
+        PositionY = snapshot.PositionY;
+        Orientation = snapshot.Orientation;
+        IsPrimary = snapshot.IsPrimary;
     }
 }
