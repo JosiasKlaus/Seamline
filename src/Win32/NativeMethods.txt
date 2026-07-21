@@ -1,2 +1,12 @@
-GetThreadDpiAwarenessContext
 AreDpiAwarenessContextsEqual
+ChangeDisplaySettingsEx
+DisplayConfigGetDeviceInfo
+DISPLAYCONFIG_TARGET_DEVICE_NAME
+DISPLAY_DEVICE_STATE_FLAGS
+EnumDisplayDevices
+EnumDisplaySettings
+GetDisplayConfigBufferSizes
+GetSystemMetrics
+GetThreadDpiAwarenessContext
+QueryDisplayConfig
+EDD_GET_DEVICE_INTERFACE_NAME

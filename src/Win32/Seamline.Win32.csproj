@@ -4,6 +4,11 @@
     <ProjectReference Include="..\Core\Seamline.Core.csproj" />
   </ItemGroup>
 
+  <!-- Vendored copy of the CsWin32 output, kept out of the build; see its README. -->
+  <ItemGroup>
+    <Compile Remove="Generated.snapshot\**\*.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.298">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

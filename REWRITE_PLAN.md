@@ -108,7 +108,9 @@ public DisplayChangeResult CommitStaged()
     => Map(PInvoke.ChangeDisplaySettingsEx((PCWSTR)null, null, HWND.Null, 0, null)); // NULL/NULL commit
 ```
 
-Rules carried over verbatim: primary monitor is never moved; `CDS_SET_PRIMARY` never used; coordinates written as-is (Windows keeps primary at origin); `hwnd`/`lParam` always NULL. **M1 decision item:** keep or drop `CDS_GLOBAL` (all-users registry write — can fail on locked-down machines where per-user would succeed; now at least visible because return codes are checked).
+Rules carried over verbatim: primary monitor is never moved; `CDS_SET_PRIMARY` never used; coordinates written as-is (Windows keeps primary at origin); `hwnd`/`lParam` always NULL. **M1 decision (resolved 2026-07):** `CDS_GLOBAL` kept, faithful to the original — verified working on real hardware; revisit only if failures are reported on locked-down machines (return codes are checked, so they'd be visible).
+
+**Sharp edge (observed in M1):** Windows silently *normalizes* staged layouts that would overlap or disconnect monitors — every `ChangeDisplaySettingsEx` call still returns `DISP_CHANGE_SUCCESSFUL`, but the position is snapped back. Alignment moves slide along shared edges, so normal use is unaffected; still, never interpret success codes as proof the exact position was applied — re-enumerate to confirm (the `--move` harness does).
 
 Virtual screen: `GetSystemMetrics(SM_XVIRTUALSCREEN=76, SM_YVIRTUALSCREEN=77, SM_CXVIRTUALSCREEN=78, SM_CYVIRTUALSCREEN=79)` — always live, never derived from the model. Between edit and apply, model (pending) and virtual-screen metrics (actual) intentionally disagree.
 
@@ -145,21 +147,21 @@ Port these exactly. Items marked ⚠ are the non-obvious ones AI assistants will
 ### Model & data
 - [ ] 10 monitor fields: DeviceName (write-once, unique key), MonitorName, FriendlyMonitorName, DisplayAdapter, ScreenWidth, ScreenHeight, PositionX, PositionY, Orientation, IsPrimary.
 - [x] Orientation enum values 0/1/2/3 numerically = `DMDO_DEFAULT/90/180/270`.
-- [ ] Positions are physical-pixel virtual-screen coordinates; primary top-left = (0,0); negatives valid and written verbatim.
+- [x] Positions are physical-pixel virtual-screen coordinates; primary top-left = (0,0); negatives valid and written verbatim.
 - [ ] Setting a property to its current value is a silent no-op (equality suppression).
 - [ ] Every effective change raises change notification; snapshot restore goes through setters so the UI repaints.
 - [ ] Duplicate `DeviceName` add throws; layout ordering = sort by `(PositionX, PositionY)`.
 - [ ] ⚠ Hit-test: inclusive on **all four** edges; shared-edge point resolves to first monitor in insertion order.
-- [ ] Virtual-screen offset/size always queried live via `GetSystemMetrics(76/77/78/79)`, never computed from the model.
+- [x] Virtual-screen offset/size always queried live via `GetSystemMetrics(76/77/78/79)`, never computed from the model.
 
 ### Interop
-- [ ] Enumeration: `EnumDisplayDevices(NULL, i, 0)` adapters → `EnumDisplayDevices(name, j, EDD_GET_DEVICE_INTERFACE_NAME)` monitors; include only ACTIVE; skip mirroring drivers (adapter flags); FALSE = end, not error; cap loops at 1000.
-- [ ] Friendly names: `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` + `DisplayConfigGetDeviceInfo(GET_TARGET_NAME)`, joined on `monitorDevicePath == DISPLAY_DEVICE.DeviceID`.
-- [ ] ⚠ Geometry from `ENUM_REGISTRY_SETTINGS (-2)` on **both** read and write paths.
-- [ ] ⚠ Stage: read registry DEVMODE, set `dmPosition = (x,y)`, `dmFields = DM_POSITION` (**assignment, not OR** — OR-ing re-applies stale mode fields), call with `CDS_UPDATEREGISTRY | CDS_GLOBAL | CDS_NORESET` (0x10000009), hwnd/lParam NULL.
-- [ ] Commit: single `ChangeDisplaySettingsEx(NULL, NULL, NULL, 0, NULL)` applies all staged monitors in one atomic modeset. **Never apply one-at-a-time non-deferred** — transient invalid layouts get rejected by Windows.
-- [ ] Primary never moved; `CDS_SET_PRIMARY` never used.
-- [ ] `DISP_CHANGE_SUCCESSFUL == 0` checked on every stage and the commit (deviation: original ignored them).
+- [x] Enumeration: `EnumDisplayDevices(NULL, i, 0)` adapters → `EnumDisplayDevices(name, j, EDD_GET_DEVICE_INTERFACE_NAME)` monitors; include only ACTIVE; skip mirroring drivers (adapter flags); FALSE = end, not error; cap loops at 1000.
+- [x] Friendly names: `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` + `DisplayConfigGetDeviceInfo(GET_TARGET_NAME)`, joined on `monitorDevicePath == DISPLAY_DEVICE.DeviceID`.
+- [x] ⚠ Geometry from `ENUM_REGISTRY_SETTINGS (-2)` on **both** read and write paths.
+- [x] ⚠ Stage: read registry DEVMODE, set `dmPosition = (x,y)`, `dmFields = DM_POSITION` (**assignment, not OR** — OR-ing re-applies stale mode fields), call with `CDS_UPDATEREGISTRY | CDS_GLOBAL | CDS_NORESET` (0x10000009), hwnd/lParam NULL.
+- [x] Commit: single `ChangeDisplaySettingsEx(NULL, NULL, NULL, 0, NULL)` applies all staged monitors in one atomic modeset. **Never apply one-at-a-time non-deferred** — transient invalid layouts get rejected by Windows.
+- [ ] Primary never moved; `CDS_SET_PRIMARY` never used. *(CDS_SET_PRIMARY: verified never used. "Primary never moved" is enforced by the CLI harness today; tick once AlignController enforces it in M2/M4.)*
+- [x] `DISP_CHANGE_SUCCESSFUL == 0` checked on every stage and the commit (deviation: original ignored them).
 
 ### Alignment session
 - [ ] Adjust opens one fullscreen borderless overlay per monitor at `(PositionX, PositionY)` size `(ScreenWidth, ScreenHeight)`, white background, no taskbar entry.
@@ -250,7 +252,8 @@ Publish profile (`-r win-x64 --self-contained -p:PublishSingleFile=true -p:Enabl
 7. **Session cleanup on both exit paths** (fixes stale mementos/models after Apply).
 8. **Overview transform computed from scratch each paint**; border-rect bottom-edge bug fixed.
 9. **Embedded resources** instead of CWD-relative paths.
-10. **Small config persistence** (only if it costs <½ day in M4): remember `AlignSettings` in `%APPDATA%\Seamline\settings.json` via `System.Text.Json`. Everything else — localization, horizontal alignment, hot-plug, tray icon — is explicitly *out*.
+10. **Enumeration robustness** (from M1 review): `QueryDisplayConfig` retried on `ERROR_INSUFFICIENT_BUFFER`; friendly-name join case-insensitive (device-interface paths are case-insensitive identifiers); one `MonitorInfo` per adapter so GDI clone mode can't produce duplicate `DeviceName` keys; a device without a readable registry mode skips that adapter's remaining monitors instead of aborting discovery (original semantics).
+11. **Small config persistence** (only if it costs <½ day in M4): remember `AlignSettings` in `%APPDATA%\Seamline\settings.json` via `System.Text.Json`. Everything else — localization, horizontal alignment, hot-plug, tray icon — is explicitly *out*.
 
 Not carried over (dead weight): sync-state machinery, `from_memento`, `NestedProperties`, unused exception types, unused `GetMonitorInfo`/`EnumDisplayMonitors` bindings, the three-mode signal-connection enum.
 
