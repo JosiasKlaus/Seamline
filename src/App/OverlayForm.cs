@@ -17,19 +17,16 @@ internal sealed class OverlayForm : Form
 {
     private readonly AlignSessionCoordinator _coordinator;
     private readonly MonitorInfo _monitor;
-    private readonly MonitorInfo _primary;
     private readonly AlignSettings _settings;
     private readonly ToolTip _cursorTip = new();
     private readonly List<IDisposable> _subscriptions = [];
     private InfoBoxPanel? _infoBox;
     private ControlBoxPanel? _controlBox;
 
-    public OverlayForm(AlignSessionCoordinator coordinator, MonitorInfo monitor, MonitorInfo primary,
-        AlignSettings settings)
+    public OverlayForm(AlignSessionCoordinator coordinator, MonitorInfo monitor, AlignSettings settings)
     {
         _coordinator = coordinator;
         _monitor = monitor;
-        _primary = primary;
         _settings = settings;
 
         AutoScaleMode = AutoScaleMode.None;
@@ -118,12 +115,13 @@ internal sealed class OverlayForm : Form
 
         if (_settings.ShowHorizontalLines)
         {
+            int referenceCenterY = _coordinator.ReferenceCenterY;
             using var pen = new Pen(Color.Black, _settings.LineThickness);
             foreach (LineSegment s in LineGeometry.HorizontalSegments(
-                         _primary.ScreenHeight, _settings.LineSpacing, _monitor.PositionY, _monitor.ScreenWidth))
+                         referenceCenterY, _settings.LineSpacing, _monitor.PositionY, _monitor.ScreenWidth))
                 g.DrawLine(pen, s.X1, s.Y1, s.X2, s.Y2);
 
-            if (!LineGeometry.AnyHorizontalSegmentVisible(_primary.ScreenHeight, _settings.LineSpacing,
+            if (!LineGeometry.AnyHorizontalSegmentVisible(referenceCenterY, _settings.LineSpacing,
                     _monitor.PositionY, _monitor.ScreenWidth, _monitor.ScreenHeight))
                 DrawOffscreenHint(g);
         }
@@ -142,6 +140,7 @@ internal sealed class OverlayForm : Form
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
+        _coordinator.NotifyOverlaySelected(_monitor);
         Invalidate();
     }
 
@@ -159,7 +158,7 @@ internal sealed class OverlayForm : Form
         using var format = new StringFormat { Alignment = StringAlignment.Center };
         g.DrawString(
             "The alignment lines lie outside this monitor's visible area.\n"
-            + "Horizontal lines align monitors positioned beside the primary monitor.",
+            + "Lines follow the selected screen's row — click the screen you want to align.",
             font, brush, new PointF(ClientSize.Width / 2f, ClientSize.Height * 0.68f), format);
     }
 

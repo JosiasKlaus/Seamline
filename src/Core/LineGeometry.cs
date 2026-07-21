@@ -4,9 +4,11 @@ public readonly record struct LineSegment(int X1, int Y1, int X2, int Y2);
 
 /// <summary>
 /// Alignment-line math, in physical pixels, in each overlay's local coordinates.
-/// Reference heights come from the PRIMARY monitor: mid = primaryHeight/2,
-/// over = mid − spacing, under = mid + spacing; a monitor's local y is
-/// reference − PositionY. Up (PositionY +1) therefore moves the lines up on screen.
+/// Reference heights come from a reference monitor's virtual-screen center line
+/// (see AlignmentReference): mid = referenceCenterY, over = mid − spacing,
+/// under = mid + spacing; a monitor's local y is reference − PositionY.
+/// Up (PositionY +1) therefore moves the lines up on screen. With the primary as
+/// reference, referenceCenterY = primaryHeight/2 — the original's exact formula.
 /// </summary>
 public static class LineGeometry
 {
@@ -14,12 +16,11 @@ public static class LineGeometry
     /// width/5 anchored at the left and right edges (4 stubs). Order: mid,
     /// over-left, over-right, under-left, under-right.</summary>
     public static IReadOnlyList<LineSegment> HorizontalSegments(
-        int primaryHeight, int lineSpacing, int monitorPositionY, int screenWidth)
+        int referenceCenterY, int lineSpacing, int monitorPositionY, int screenWidth)
     {
-        int mid = primaryHeight / 2;
-        int yMid = mid - monitorPositionY;
-        int yOver = mid - lineSpacing - monitorPositionY;
-        int yUnder = mid + lineSpacing - monitorPositionY;
+        int yMid = referenceCenterY - monitorPositionY;
+        int yOver = referenceCenterY - lineSpacing - monitorPositionY;
+        int yUnder = referenceCenterY + lineSpacing - monitorPositionY;
         int stub = screenWidth / 5;
         return
         [
@@ -39,10 +40,9 @@ public static class LineGeometry
     ];
 
     /// <summary>False when every horizontal reference line falls outside the monitor's
-    /// visible height — the case for monitors stacked above/below the primary, whose
-    /// vertical offset horizontal lines cannot align.</summary>
+    /// visible height — the case for monitors in a different row than the reference.</summary>
     public static bool AnyHorizontalSegmentVisible(
-        int primaryHeight, int lineSpacing, int monitorPositionY, int screenWidth, int screenHeight)
-        => HorizontalSegments(primaryHeight, lineSpacing, monitorPositionY, screenWidth)
+        int referenceCenterY, int lineSpacing, int monitorPositionY, int screenWidth, int screenHeight)
+        => HorizontalSegments(referenceCenterY, lineSpacing, monitorPositionY, screenWidth)
             .Any(s => s.Y1 >= 0 && s.Y1 < screenHeight);
 }

@@ -5,9 +5,10 @@ public class LineGeometryTests
     [Fact]
     public void Segments_for_side_by_side_monitor_at_default_spacing()
     {
-        // Primary 1920x1200 → mid=600, over=500, under=700; monitor at PositionY=0.
+        // Primary 1920x1200 as reference → center 600, over 500, under 700;
+        // monitor at PositionY=0.
         var segments = LineGeometry.HorizontalSegments(
-            primaryHeight: 1200, lineSpacing: 100, monitorPositionY: 0, screenWidth: 1920);
+            referenceCenterY: 600, lineSpacing: 100, monitorPositionY: 0, screenWidth: 1920);
 
         Assert.Equal(
         [
@@ -24,8 +25,8 @@ public class LineGeometryTests
     {
         // The ⚠ sign convention: Up key increases PositionY, local y = ref − PositionY
         // decreases, so the drawn lines move UP.
-        var atZero = LineGeometry.HorizontalSegments(1200, 100, 0, 1920);
-        var raised = LineGeometry.HorizontalSegments(1200, 100, 3, 1920);
+        var atZero = LineGeometry.HorizontalSegments(600, 100, 0, 1920);
+        var raised = LineGeometry.HorizontalSegments(600, 100, 3, 1920);
 
         Assert.Equal(atZero[0].Y1 - 3, raised[0].Y1);
         Assert.Equal(atZero[1].Y1 - 3, raised[1].Y1);
@@ -33,26 +34,40 @@ public class LineGeometryTests
     }
 
     [Fact]
-    public void References_track_the_primary_height_and_spacing()
+    public void References_track_the_reference_center_and_spacing()
     {
-        var segments = LineGeometry.HorizontalSegments(1080, 250, 0, 1000);
+        var segments = LineGeometry.HorizontalSegments(540, 250, 0, 1000);
 
-        Assert.Equal(540, segments[0].Y1); // mid = 1080/2
+        Assert.Equal(540, segments[0].Y1); // mid = reference center
         Assert.Equal(290, segments[1].Y1); // over = 540 − 250
         Assert.Equal(790, segments[3].Y1); // under = 540 + 250
         Assert.Equal(200, segments[1].X2); // stub = 1000/5
         Assert.Equal(800, segments[2].X1);
     }
 
+    [Fact]
+    public void Reference_center_in_a_negative_row_lands_lines_on_that_row()
+    {
+        // Two 1080p monitors stacked above the primary: row center = −1080 + 540 = −540.
+        // A member of that row at PositionY = −1080 sees the mid line at local y 540.
+        var segments = LineGeometry.HorizontalSegments(-540, 100, -1080, 1920);
+
+        Assert.Equal(540, segments[0].Y1);
+        Assert.Equal(440, segments[1].Y1);
+        Assert.Equal(640, segments[3].Y1);
+    }
+
     [Theory]
-    [InlineData(0, true)]      // beside the primary: mid at 600 is visible
-    [InlineData(550, true)]    // partially: mid at 50 still visible
-    [InlineData(-1080, false)] // stacked above: all references land below the panel
-    [InlineData(1300, false)]  // stacked below: all references land above the panel
-    public void Visibility_reflects_whether_any_reference_line_lands_on_the_panel(int positionY, bool expected)
+    [InlineData(600, 0, true)]      // reference row contains the monitor: mid at 600 visible
+    [InlineData(600, 550, true)]    // partially: mid at 50 still visible
+    [InlineData(600, -1080, false)] // primary reference, monitor stacked above: off-panel
+    [InlineData(-540, -1080, true)] // row-neighbor reference: visible again
+    [InlineData(-540, 0, false)]    // row reference above, primary below: off-panel there
+    public void Visibility_reflects_whether_any_reference_line_lands_on_the_panel(
+        int referenceCenterY, int positionY, bool expected)
     {
         Assert.Equal(expected, LineGeometry.AnyHorizontalSegmentVisible(
-            primaryHeight: 1200, lineSpacing: 100, monitorPositionY: positionY,
+            referenceCenterY, lineSpacing: 100, monitorPositionY: positionY,
             screenWidth: 1920, screenHeight: 1080));
     }
 

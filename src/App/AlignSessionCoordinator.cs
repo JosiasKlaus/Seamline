@@ -16,6 +16,7 @@ internal sealed class AlignSessionCoordinator
     private readonly AlignController _controller;
     private readonly MonitorLayout _layout;
     private readonly List<OverlayForm> _overlays = [];
+    private MonitorInfo? _referenceMonitor;
     private bool _closingOverlays;
 
     public AlignSessionCoordinator(AlignController controller, MonitorLayout layout)
@@ -24,6 +25,9 @@ internal sealed class AlignSessionCoordinator
         _layout = layout;
         controller.SessionEnded += _ => CloseOverlays();
         layout.LayoutChanged += OnLayoutChanged;
+        // Pending in-memory edits move lines everywhere (any monitor may be the
+        // reference), so every overlay repaints on any member change.
+        layout.MonitorChanged += _ => InvalidateOverlays();
     }
 
     /// <summary>Raised after the session ended and every overlay is closed.</summary>
@@ -33,16 +37,34 @@ internal sealed class AlignSessionCoordinator
 
     internal bool IsClosingOverlays => _closingOverlays;
 
+    /// <summary>Virtual-screen center of the current alignment reference
+    /// (see AlignmentReference — resolved on overlay selection).</summary>
+    internal int ReferenceCenterY => AlignmentReference.CenterY(
+        _referenceMonitor ?? _layout.PrimaryMonitor ?? _layout.Monitors[0]);
+
+    /// <summary>An overlay was clicked/focused: re-resolve the line reference for it.</summary>
+    internal void NotifyOverlaySelected(MonitorInfo monitor)
+    {
+        if (_controller.State == AlignSessionState.Idle || !_layout.TryGet(monitor.DeviceName, out _))
+            return;
+        MonitorInfo resolved = AlignmentReference.Resolve(monitor, _layout.Monitors);
+        if (!ReferenceEquals(resolved, _referenceMonitor))
+        {
+            _referenceMonitor = resolved;
+            InvalidateOverlays();
+        }
+    }
+
     public void StartSession()
     {
         if (_overlays.Count > 0)
             CloseOverlays(); // defensive: no session may start over leftover windows
 
         _controller.StartSession();
+        _referenceMonitor = _layout.PrimaryMonitor;
         foreach (MonitorInfo monitor in _layout.Monitors)
         {
-            var overlay = new OverlayForm(this, monitor, _layout.PrimaryMonitor ?? _layout.Monitors[0],
-                _controller.Settings!);
+            var overlay = new OverlayForm(this, monitor, _controller.Settings!);
             _overlays.Add(overlay);
             overlay.Show();
         }
@@ -108,6 +130,12 @@ internal sealed class AlignSessionCoordinator
         // (they raise MonitorChanged only).
         foreach (OverlayForm overlay in _overlays.ToArray())
             overlay.RefreshBoundsFromMonitor();
+    }
+
+    private void InvalidateOverlays()
+    {
+        foreach (OverlayForm overlay in _overlays.ToArray())
+            overlay.Invalidate();
     }
 
     private void CloseOverlays()
