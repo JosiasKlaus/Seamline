@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.Versioning;
 using Seamline.Core;
 using Seamline.Win32;
@@ -27,8 +28,53 @@ internal static class Program
         if (args.Length == 4 && args[0] == "--move"
             && int.TryParse(args[2], out int dx) && int.TryParse(args[3], out int dy))
             return CliHarness.Move(backend, args[1], dx, dy);
+        if (args.Contains("--align") || args.Contains("--overlaycheck"))
+            return RunAlignSession(backend, verifyOnly: args.Contains("--overlaycheck"));
 
         Application.Run(new MainForm());
+        return 0;
+    }
+
+    private static int RunAlignSession(IDisplayBackend backend, bool verifyOnly)
+    {
+        var layout = new MonitorLayout();
+        layout.ResetTo(backend.EnumerateMonitors());
+        if (layout.Count == 0)
+        {
+            Console.WriteLine("no monitors found");
+            return 3;
+        }
+
+        // Note: nothing re-enumerates on WM_DISPLAYCHANGE here, so the controller's
+        // session-invalidation machinery has no trigger in this driver (hot-plug is
+        // an explicit non-goal). M4 wires re-enumeration and must handle the
+        // applied-but-invalidated outcome knowingly.
+        var controller = new AlignController(backend, layout);
+        var coordinator = new AlignSessionCoordinator(controller, layout);
+        coordinator.StartSession();
+
+        if (verifyOnly)
+        {
+            // Self-asserting M3 exit criterion: every overlay must cover its monitor
+            // exactly edge-to-edge in physical pixels.
+            int failures = 0;
+            foreach (OverlayForm overlay in coordinator.Overlays)
+            {
+                layout.TryGet(overlay.DeviceName, out MonitorInfo? monitor);
+                var expected = new Rectangle(
+                    monitor!.PositionX, monitor.PositionY, monitor.ScreenWidth, monitor.ScreenHeight);
+                bool ok = overlay.Bounds == expected;
+                if (!ok)
+                    failures++;
+                Console.WriteLine(
+                    $"overlay {overlay.DeviceName} bounds={overlay.Bounds} expected={expected} " +
+                    $"dpi={overlay.DeviceDpi} {(ok ? "OK" : "MISMATCH")}");
+            }
+            controller.AbortSession();
+            return failures == 0 ? 0 : 4;
+        }
+
+        Application.Run(new AlignApplicationContext(coordinator));
         return 0;
     }
 }
