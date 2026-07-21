@@ -11,7 +11,7 @@ namespace Seamline.App;
 /// </summary>
 internal sealed class OverviewPanel : Panel
 {
-    private const int Margin = 10;
+    private const int FitMargin = 10;
     private static readonly Color GradientStart = Color.FromArgb(15, 125, 193);  // top-right
     private static readonly Color GradientEnd = Color.FromArgb(119, 196, 122);   // bottom-left
 
@@ -46,8 +46,8 @@ internal sealed class OverviewPanel : Panel
         float vHeight = vBottom - vTop;
 
         float scale = Math.Min(
-            (ClientSize.Width - 2f * Margin) / vWidth,
-            (ClientSize.Height - 2f * Margin) / vHeight);
+            (ClientSize.Width - 2f * FitMargin) / vWidth,
+            (ClientSize.Height - 2f * FitMargin) / vHeight);
         float offsetX = (ClientSize.Width - vWidth * scale) / 2f - vLeft * scale;
         float offsetY = (ClientSize.Height - vHeight * scale) / 2f - vTop * scale;
 

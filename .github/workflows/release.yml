@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Test
+        run: dotnet test Seamline.slnx --configuration Release
+      - name: Publish
+        shell: pwsh
+        run: |
+          # The tag is the single source of truth for the release version.
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          dotnet publish src/App/Seamline.App.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:Version=$version -o publish
+      - name: Hash
+        shell: pwsh
+        run: |
+          # LF-only so `sha256sum -c` accepts the file (Out-File would write CRLF).
+          $hash = (Get-FileHash publish/seamline.exe -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText("publish/seamline.exe.sha256", "$hash  seamline.exe`n")
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            publish/seamline.exe
+            publish/seamline.exe.sha256
+          generate_release_notes: true

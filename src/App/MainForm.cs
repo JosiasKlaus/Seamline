@@ -31,6 +31,8 @@ internal sealed class MainForm : Form
         Text = "Seamline";
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
+        if (Environment.ProcessPath is { } exePath)
+            Icon = Icon.ExtractAssociatedIcon(exePath);
         AutoScaleMode = AutoScaleMode.Dpi;
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoSize = true;

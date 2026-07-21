@@ -5,6 +5,10 @@
     <ProjectReference Include="..\Win32\Seamline.Win32.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\seamline-256.png" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -12,6 +16,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>seamline</AssemblyName>
+    <ApplicationIcon>seamline.ico</ApplicationIcon>
+    <Version>0.9.0</Version>
+    <Product>Seamline</Product>
+    <AssemblyTitle>Seamline</AssemblyTitle>
+    <Company>Josias Klaus</Company>
+    <Copyright>© 2026 Josias Klaus</Copyright>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- WFO0003 wants DPI config only via ApplicationHighDpiMode; we deliberately also

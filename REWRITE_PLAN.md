@@ -177,9 +177,9 @@ Port these exactly. Items marked ⚠ are the non-obvious ones AI assistants will
 - [ ] App shutdown while a session is live = abort + in-memory rollback (controller stop on main-form close).
 
 ### Main window & dialogs
-- [ ] Fixed-size main window, minimize+close only; overview (10 px margin fit, gradient, index labels, non-interactive, live-updates on `LayoutChanged`); per-monitor info boxes in `(x, y)` order; Close/Adjust/About.
-- [ ] Info form rows in order: DEVICE NAME, MONITOR NAME, FRIENDLY MONITOR NAME, DISPLAY ADAPTER, SCREEN RESOLUTION (`WxH`), VIRTUAL SCREEN POSITION (`(x, y)`), ORIENTATION (Landscape / Portrait / Landscape (flipped) / Portrait (flipped)), IS PRIMARY — labels above bold values, live-updating.
-- [ ] Windowed exe (no console), no admin elevation, embedded icon.
+- [x] Fixed-size main window, minimize+close only; overview (10 px margin fit, gradient, index labels, non-interactive, live-updates on `LayoutChanged`); per-monitor info boxes in `(x, y)` order; Close/Adjust/About.
+- [x] Info form rows in order: DEVICE NAME, MONITOR NAME, FRIENDLY MONITOR NAME, DISPLAY ADAPTER, SCREEN RESOLUTION (`WxH`), VIRTUAL SCREEN POSITION (`(x, y)`), ORIENTATION (Landscape / Portrait / Landscape (flipped) / Portrait (flipped)), IS PRIMARY — labels above bold values, live-updating.
+- [x] Windowed exe (no console), no admin elevation, embedded icon.
 
 ---
 
@@ -243,7 +243,7 @@ Publish profile (`-r win-x64 --self-contained -p:PublishSingleFile=true -p:Enabl
 
 ## 7. Distribution & Packaging
 
-- **Artifact:** one self-contained single-file exe, ~60–70 MB compressed. Windows 10 1607+ / Windows 11 x64; `win-arm64` is one extra publish line. No installer, no runtime install, no admin (`ChangeDisplaySettingsEx` position changes need none — no UAC manifest entry).
+- **Artifact:** one self-contained single-file exe — measured 49.4 MB compressed vs 111 MB uncompressed, with launch time ~1.0 s for both (M5 measurement on real hardware; compression kept — smaller *and* no slower, since less is read from disk). Windows 10 1607+ / Windows 11 x64; `win-arm64` is one extra publish line. No installer, no runtime install, no admin (`ChangeDisplaySettingsEx` position changes need none — no UAC manifest entry).
 - **Release:** GitHub Actions workflow: tag → build → publish exe + SHA-256 as release assets.
 - **SmartScreen:** unsigned exe triggers the interstitial; ship unsigned with documented "More info → Run anyway" + published hash (reputation accrues per file hash). Code-signing cert (~€200–400/yr) is disproportionate; revisit only if AV false-positives become a real support burden.
 - **Size escape hatches (documented, not built):** (a) multi-target the same source to .NET Framework 4.8.1 → ~1 MB exe, zero runtime distribution, at the cost of C# 7.3-era constraints; (b) port only the App layer to raw Win32 + CsWin32, which is Native-AOT-clean (~3–6 MB). Both reuse Core/Win32 unchanged — that's why the split exists.
