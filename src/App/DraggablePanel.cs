@@ -47,4 +47,11 @@ internal abstract class DraggablePanel : Panel
     }
 
     protected Label TitleBar { get; }
+
+    /// <summary>Accent the title bar (used to mark the selected overlay's boxes).</summary>
+    public void SetTitleAccent(bool active)
+    {
+        TitleBar.BackColor = active ? Color.FromArgb(15, 125, 193) : Color.FromArgb(220, 220, 220);
+        TitleBar.ForeColor = active ? Color.White : Color.Black;
+    }
 }

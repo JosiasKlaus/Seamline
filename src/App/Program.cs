@@ -31,7 +31,17 @@ internal static class Program
         if (args.Contains("--align") || args.Contains("--overlaycheck"))
             return RunAlignSession(backend, verifyOnly: args.Contains("--overlaycheck"));
 
-        Application.Run(new MainForm());
+        var layout = new MonitorLayout();
+        layout.ResetTo(backend.EnumerateMonitors());
+        if (layout.Count == 0)
+        {
+            MessageBox.Show("Seamline could not find any monitors.", "Seamline",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return 3;
+        }
+        var controller = new AlignController(backend, layout);
+        var coordinator = new AlignSessionCoordinator(controller, layout);
+        Application.Run(new MainForm(backend, layout, controller, coordinator));
         return 0;
     }
 
@@ -50,7 +60,8 @@ internal static class Program
         // an explicit non-goal). M4 wires re-enumeration and must handle the
         // applied-but-invalidated outcome knowingly.
         var controller = new AlignController(backend, layout);
-        var coordinator = new AlignSessionCoordinator(controller, layout);
+        // A verify-only run must not touch %APPDATA% as a side effect.
+        var coordinator = new AlignSessionCoordinator(controller, layout, persistSettings: !verifyOnly);
         coordinator.StartSession();
 
         if (verifyOnly)

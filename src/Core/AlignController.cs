@@ -46,6 +46,11 @@ public sealed class AlignController
     /// session's settings (Settings is already null when this fires).</summary>
     public event Action<AlignSettings>? SessionEnded;
 
+    /// <summary>Runs on the fresh per-session settings before SessionStarted is
+    /// raised, so observers never see un-initialized defaults (used by the UI to
+    /// apply persisted settings).</summary>
+    public Action<AlignSettings>? SettingsInitializer { get; set; }
+
     public void StartSession()
     {
         if (State != AlignSessionState.Idle)
@@ -53,6 +58,7 @@ public sealed class AlignController
         foreach (MonitorInfo monitor in _layout.Monitors)
             _session.Add((monitor, monitor.CreateSnapshot()));
         Settings = new AlignSettings();
+        SettingsInitializer?.Invoke(Settings);
         _invalidatePending = false;
         State = AlignSessionState.Aligning;
         SessionStarted?.Invoke();

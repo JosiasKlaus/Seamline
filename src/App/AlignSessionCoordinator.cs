@@ -19,10 +19,16 @@ internal sealed class AlignSessionCoordinator
     private MonitorInfo? _referenceMonitor;
     private bool _closingOverlays;
 
-    public AlignSessionCoordinator(AlignController controller, MonitorLayout layout)
+    public AlignSessionCoordinator(AlignController controller, MonitorLayout layout, bool persistSettings = true)
     {
         _controller = controller;
         _layout = layout;
+        if (persistSettings)
+        {
+            // Applied before SessionStarted is observable, saved on every end path.
+            controller.SettingsInitializer = SettingsStore.ApplyTo;
+            controller.SessionEnded += SettingsStore.Save;
+        }
         controller.SessionEnded += _ => CloseOverlays();
         layout.LayoutChanged += OnLayoutChanged;
         // Pending in-memory edits move lines everywhere (any monitor may be the
@@ -108,6 +114,10 @@ internal sealed class AlignSessionCoordinator
 
         using var dialog = new RollbackDialog(timeoutSeconds: 15);
         DialogResult answer = dialog.ShowDialog();
+        // The modal pump can dispatch a WM_CLOSE that runs controller.Shutdown()
+        // (full revert) while the countdown shows — the session may already be over.
+        if (_controller.State != AlignSessionState.Confirming)
+            return;
         if (answer == DialogResult.Yes)
             _controller.ConfirmApplied();
         else

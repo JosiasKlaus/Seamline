@@ -126,27 +126,50 @@ internal sealed class OverlayForm : Form
                 DrawOffscreenHint(g);
         }
 
+        // Selection = OS focus. A badge at top-center instead of an edge frame:
+        // the frame sat exactly where line continuity is judged across the bezel.
         if (ContainsFocus)
+            DrawSelectionBadge(g);
+    }
+
+    private void DrawSelectionBadge(Graphics g)
+    {
+        float scale = DeviceDpi / 96f;
+        const string text = "Selected";
+        using var font = new Font("Segoe UI", 10f * scale, FontStyle.Bold);
+        SizeF textSize = g.MeasureString(text, font);
+        float w = textSize.Width + 28f * scale;
+        float h = textSize.Height + 10f * scale;
+        var rect = new RectangleF((ClientSize.Width - w) / 2f, 10f * scale, w, h);
+
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        float radius = h / 2f;
+        using var path = new GraphicsPath();
+        path.AddArc(rect.X, rect.Y, radius * 2, radius * 2, 90, 180);
+        path.AddArc(rect.Right - radius * 2, rect.Y, radius * 2, radius * 2, 270, 180);
+        path.CloseFigure();
+        using var background = new SolidBrush(Color.FromArgb(15, 125, 193));
+        g.FillPath(background, path);
+        using var format = new StringFormat
         {
-            // Selection = OS focus; the frame shows which monitor receives the keys.
-            using var pen = new Pen(Color.FromArgb(15, 125, 193), 6f)
-            {
-                Alignment = System.Drawing.Drawing2D.PenAlignment.Inset,
-            };
-            g.DrawRectangle(pen, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
-        }
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Center,
+        };
+        g.DrawString(text, font, Brushes.White, rect, format);
     }
 
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
         _coordinator.NotifyOverlaySelected(_monitor);
+        _infoBox?.SetTitleAccent(true);
         Invalidate();
     }
 
     protected override void OnDeactivate(EventArgs e)
     {
         base.OnDeactivate(e);
+        _infoBox?.SetTitleAccent(false);
         Invalidate();
     }
 
