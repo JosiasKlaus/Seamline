@@ -1,4 +1,5 @@
 using System.Drawing.Drawing2D;
+using System.Runtime.Versioning;
 using Seamline.Core;
 
 namespace Seamline.App;
@@ -10,6 +11,7 @@ namespace Seamline.App;
 /// gradient/border look). The fit transform is computed from scratch on every
 /// paint; repaints on LayoutChanged (post-apply/membership — never pending edits).
 /// </summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class OverviewPanel : Panel
 {
     private const int FitMargin = 24;
@@ -34,6 +36,8 @@ internal sealed class OverviewPanel : Panel
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
+        if (Width <= 2 || Height <= 2)
+            return; // the resizable layout can squeeze this row to nothing
         Graphics g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
 

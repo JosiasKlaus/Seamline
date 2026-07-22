@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Seamline.Core;
 
 namespace Seamline.App;
@@ -6,6 +7,7 @@ namespace Seamline.App;
 /// sized to content. Shared by the overlay info box (manual DPI, AutoScaleMode.None
 /// host) and the main window (pass 96 — the form's Dpi autoscaling is the single
 /// scaling authority there).</summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class MonitorInfoRows : Panel
 {
     private readonly MonitorInfo _monitor;

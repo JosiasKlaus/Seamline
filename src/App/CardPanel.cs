@@ -1,9 +1,11 @@
 using System.Drawing.Drawing2D;
+using System.Runtime.Versioning;
 
 namespace Seamline.App;
 
 /// <summary>Rounded Fluent-style surface card. Children inherit the card's
 /// background color; keep them inset past the corner radius.</summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal class CardPanel : Panel
 {
     protected const float CornerRadius = 8f;
@@ -11,6 +13,9 @@ internal class CardPanel : Panel
     public CardPanel()
     {
         DoubleBuffered = true;
+        // Full repaint on any size change — cards resize live now, and partial
+        // invalidation smears the rounded border across the exposed area.
+        SetStyle(ControlStyles.ResizeRedraw, true);
         BackColor = ModernTheme.CardBackground;
     }
 

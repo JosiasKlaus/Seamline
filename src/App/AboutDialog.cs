@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.Versioning;
 
 namespace Seamline.App;
 
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class AboutDialog : Form
 {
     public AboutDialog()

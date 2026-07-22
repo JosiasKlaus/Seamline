@@ -1,9 +1,11 @@
+using System.Runtime.Versioning;
 using Seamline.Core;
 
 namespace Seamline.App;
 
 /// <summary>"Display Information" box shown on every overlay: the shared monitor
 /// rows wrapped in a draggable panel.</summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class InfoBoxPanel : DraggablePanel
 {
     public InfoBoxPanel(MonitorInfo monitor, int deviceDpi = 96)

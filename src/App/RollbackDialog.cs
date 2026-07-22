@@ -1,3 +1,5 @@
+using System.Runtime.Versioning;
+
 namespace Seamline.App;
 
 /// <summary>
@@ -5,6 +7,7 @@ namespace Seamline.App;
 /// Original German strings preserved; "Nein" is the default and is auto-invoked
 /// when the countdown reaches zero. No close button, always on top.
 /// </summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class RollbackDialog : Form
 {
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 1000 };

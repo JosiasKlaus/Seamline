@@ -121,14 +121,32 @@ the Per-Monitor-V2 awareness check backing the startup assert.
 
 ## App
 
-**Per-monitor DPI has two regimes.** The main window uses WinForms
-`AutoScaleMode.Dpi` as its single scaling authority (dynamically rebuilt monitor
-cards self-scale from `DeviceDpi` because they are created after the scale
-pass). The overlays opt out entirely: `AutoScaleMode.None`, manual bounds set to
-the monitor's physical rectangle before `Show()` — WinForms' rescaling machinery
-never touches the drawing surface, and a borderless window exactly covering one
-monitor never straddles a DPI boundary. PMv2 awareness is declared three ways:
-app.manifest, `ApplicationHighDpiMode`, and a runtime assert.
+**Per-monitor DPI has two regimes.** The main window declares WinForms
+`AutoScaleMode.Dpi`, whose initial pass runs while the form is still empty — so
+startup chrome is laid out in raw device pixels at the launch DPI (the sizing
+code scales its constants by `DeviceDpi` explicitly, and point-size fonts render
+DPI-scaled on their own); the framework rescales the chrome only on a live DPI
+change, upon which the monitor cards are rebuilt — cards always self-scale from
+`DeviceDpi`. The overlays opt out entirely: `AutoScaleMode.None`, manual bounds
+set to the monitor's physical rectangle before `Show()` — WinForms' rescaling
+machinery never touches the drawing surface, and a borderless window exactly
+covering one monitor never straddles a DPI boundary. PMv2 awareness is declared
+three ways: app.manifest, `ApplicationHighDpiMode`, and a runtime assert.
+
+**Main-window layout.** The resizable window is one `TableLayoutPanel` with a
+percent row for the overview (absorbs all extra height) above autosize rows for
+the section label, the card grid and the buttons. `MonitorCardGrid` lays the
+monitor cards out manually — columns from the available width (270–480 logical
+px per card), cards stretched to share the row at equal heights — because
+TableLayoutPanel's autosize negotiation with self-sizing children is not
+deterministic under live resize. Sharp edge (empirically verified): a child that
+sets its own `Height` *during* its parent's layout pass is silently dropped —
+WinForms marks the mid-layout container deferred and never re-runs it, so the
+autosize row keeps the stale height until an unrelated event. The grid heals
+this by posting a follow-up `PerformLayout`; posted messages run before
+`WM_PAINT`, so the stale intermediate layout is never painted. Launch size and
+the content-derived minimum size are computed in `OnLoad` from `DeviceDpi` and
+the measured card wrap.
 
 **Alignment session UI.** `AlignSessionCoordinator` creates one `OverlayForm`
 per monitor, routes keys to the controller, runs Apply → rollback-countdown →

@@ -7,9 +7,18 @@ namespace Seamline.App;
 /// <summary>
 /// The main window (M7.5 look): Win11-style overview card on top, a "Monitors"
 /// section with one live monitor card per monitor in (x, y) order, and
-/// About / Adjust / Close as Fluent buttons on a Mica-topped window. Static
-/// chrome scales via AutoScaleMode.Dpi; monitor cards are built AFTER the scale
-/// pass (OnLoad and rebuilds) and therefore scale themselves from DeviceDpi.
+/// About / Adjust / Close as Fluent buttons on a Mica-topped window. Resizable:
+/// the overview absorbs extra height, the card grid re-wraps its columns with
+/// the width (§backlog #9).
+///
+/// DPI model (verified): there is NO startup scale pass over the chrome — the
+/// AutoScaleDimensions setter consumes AutoScaleMode.Dpi's initial pass while
+/// the form is still empty, so static chrome is built in raw device pixels at
+/// the launch DPI (point-size fonts render DPI-scaled on their own, and the
+/// sizing code below scales its constants by DeviceDpi explicitly). Only a DPI
+/// change while running rescales existing chrome (framework); the monitor cards
+/// are instead rebuilt and always self-scale from DeviceDpi.
+///
 /// Re-enumerates on display-settings changes while no session is active, so the
 /// overview and cards track external layout changes.
 /// </summary>
@@ -19,9 +28,11 @@ internal sealed class MainForm : Form
     private readonly IDisplayBackend _backend;
     private readonly MonitorLayout _layout;
     private readonly AlignController _controller;
-    private readonly FlowLayoutPanel _cardsTable;
+    private readonly TableLayoutPanel _root;
+    private readonly MonitorCardGrid _cardsGrid;
     private readonly OverviewPanel _overview;
     private readonly Label _sectionLabel;
+    private readonly TableLayoutPanel _buttonRow;
     private bool _displayChangedDuringSession;
 
     public MainForm(IDisplayBackend backend, MonitorLayout layout, AlignController controller,
@@ -31,35 +42,35 @@ internal sealed class MainForm : Form
         _layout = layout;
         _controller = controller;
 
-        // Fixed-size window: the resizable/responsive layout is deferred (it needs
-        // proper resize-repaint and stretch-card work — tracked as a backlog item).
         Text = "Seamline";
-        FormBorderStyle = FormBorderStyle.FixedSingle;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
         Font = ModernTheme.UiFont(9.5f);
         BackColor = ModernTheme.WindowBackground;
+        DoubleBuffered = true;
         if (Environment.ProcessPath is { } exePath)
             Icon = Icon.ExtractAssociatedIcon(exePath);
         AutoScaleMode = AutoScaleMode.Dpi;
         AutoScaleDimensions = new SizeF(96F, 96F);
-        AutoSize = true;
-        AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        // The initial size and MinimumSize are computed in OnLoad from the actual
+        // content; that code scales by DeviceDpi explicitly — no framework pass
+        // scales this chrome at startup (see the class doc).
 
-        var root = new TableLayoutPanel
+        var root = _root = new BufferedTableLayoutPanel
         {
             ColumnCount = 1,
             RowCount = 4,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Dock = DockStyle.Fill,
             Padding = new Padding(12, 10, 12, 10),
         };
+        // The overview absorbs all extra height; the other rows fit their content.
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var overview = _overview = new OverviewPanel(layout)
         {
-            Height = 210,
             Dock = DockStyle.Fill,
-            MinimumSize = new Size(520, 210),
             Margin = new Padding(0, 0, 0, 10),
         };
 
@@ -72,17 +83,16 @@ internal sealed class MainForm : Form
             Margin = new Padding(2, 0, 0, 6),
         };
 
-        _cardsTable = new FlowLayoutPanel
+        _cardsGrid = new MonitorCardGrid
         {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            MaximumSize = new Size(1100, 0), // wrap instead of outgrowing the screen
+            // Left|Right follows the cell width; Top (no Bottom) keeps the height
+            // the grid computes for itself, which the autosize row then fits.
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = new Padding(0, 0, 0, 8),
         };
-        // Cards are built in OnLoad, after the Dpi auto-scale pass, so startup and
-        // rebuild cards get identical (self-scaled) geometry.
+        // Cards are built in OnLoad and on rebuilds, always scaling themselves
+        // from the current DeviceDpi — startup and rebuild cards get identical
+        // geometry.
 
         // Zero side margins so the buttons align flush with the overview's edges.
         var aboutButton = new FluentButton { Text = "About", Margin = new Padding(0, 3, 0, 0) };
@@ -96,7 +106,7 @@ internal sealed class MainForm : Form
         var closeButton = new FluentButton { Text = "Close", Margin = new Padding(0, 3, 0, 0) };
         closeButton.Click += (_, _) => Close();
 
-        var buttonRow = new TableLayoutPanel
+        var buttonRow = _buttonRow = new BufferedTableLayoutPanel
         {
             ColumnCount = 3,
             RowCount = 1,
@@ -122,7 +132,7 @@ internal sealed class MainForm : Form
 
         root.Controls.Add(overview, 0, 0);
         root.Controls.Add(sectionLabel, 0, 1);
-        root.Controls.Add(_cardsTable, 0, 2);
+        root.Controls.Add(_cardsGrid, 0, 2);
         root.Controls.Add(buttonRow, 0, 3);
         Controls.Add(root);
 
@@ -155,7 +165,76 @@ internal sealed class MainForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        BuildInfoPanels(); // after the Dpi auto-scale pass — cards self-scale
+        BuildInfoPanels(); // cards self-scale from DeviceDpi
+        ApplyInitialWindowSize();
+    }
+
+    /// <summary>Initial window size, computed from the content (runs pre-Show):
+    /// wide enough for up to three card columns, tall enough for the resulting
+    /// card wrap plus a comfortable overview.</summary>
+    private void ApplyInitialWindowSize()
+    {
+        float s = DeviceDpi / 96f;
+        Rectangle work = Screen.FromControl(this).WorkingArea;
+
+        // Mirror the grid's own column math (card 270 + gap 10 logical), plus a
+        // few px slack so integer rounding can never force an unintended wrap.
+        int columns = Math.Clamp(_layout.Count, 1, 3);
+        int desiredWidth = _root.Padding.Horizontal
+            + columns * (int)(270 * s) + (columns - 1) * (int)(10 * s) + (int)(4 * s);
+        desiredWidth = Math.Max(desiredWidth, (int)(560 * s));
+        desiredWidth = Math.Min(desiredWidth, work.Width * 9 / 10);
+
+        // Width first, so the grid wraps at the real width before height is read.
+        ClientSize = new Size(desiredWidth, ClientSize.Height);
+        _root.PerformLayout();
+        UpdateMinimumSize(); // before the height set below, which it may clamp up
+
+        int desiredHeight = _root.Padding.Vertical
+            + (int)(220 * s) + _overview.Margin.Vertical
+            + _sectionLabel.Height + _sectionLabel.Margin.Vertical
+            + _cardsGrid.Height + _cardsGrid.Margin.Vertical
+            + _buttonRow.Height + _buttonRow.Margin.Vertical;
+        desiredHeight = Math.Min(desiredHeight, work.Height * 9 / 10);
+
+        ClientSize = new Size(desiredWidth, desiredHeight);
+    }
+
+    /// <summary>Minimum window size: 600 logical wide, and tall enough that at
+    /// that width the full card wrap, the button row and a usable overview strip
+    /// stay visible (a fixed floor let 5+-monitor wraps push the buttons off the
+    /// client area and the overview's percent row negative). Clamped to the
+    /// working area — the framework clamps too, but only against the screen the
+    /// form is on at assignment time.</summary>
+    private void UpdateMinimumSize()
+    {
+        float s = DeviceDpi / 96f;
+        Rectangle work = Screen.FromControl(this).WorkingArea;
+
+        int minClientWidth = (int)(600 * s);
+        int minClientHeight = Math.Max((int)(480 * s),
+            _root.Padding.Vertical
+            + (int)(120 * s) + _overview.Margin.Vertical
+            + _sectionLabel.Height + _sectionLabel.Margin.Vertical
+            + _cardsGrid.MeasureHeightAt(minClientWidth - _root.Padding.Horizontal)
+            + _cardsGrid.Margin.Vertical
+            + _buttonRow.Height + _buttonRow.Margin.Vertical);
+
+        Size minimum = SizeFromClientSize(new Size(minClientWidth, minClientHeight));
+        MinimumSize = new Size(Math.Min(minimum.Width, work.Width), Math.Min(minimum.Height, work.Height));
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        // AutoScaleMode.Dpi rescales the static chrome; the cards captured the
+        // old DeviceDpi at construction and must be rebuilt. Deferred so the
+        // framework's own scale pass fully unwinds first.
+        BeginInvoke(() =>
+        {
+            BuildInfoPanels();
+            UpdateMinimumSize();
+        });
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -219,12 +298,17 @@ internal sealed class MainForm : Form
 
     private void BuildInfoPanels()
     {
-        _cardsTable.SuspendLayout();
-        foreach (Control old in _cardsTable.Controls.Cast<Control>().ToArray())
+        _cardsGrid.SuspendLayout();
+        foreach (Control old in _cardsGrid.Controls.Cast<Control>().ToArray())
             old.Dispose();
-        _cardsTable.Controls.Clear();
+        _cardsGrid.Controls.Clear();
         foreach (MonitorInfo monitor in _layout.MonitorsInOrder)
-            _cardsTable.Controls.Add(new MonitorCard(monitor, DeviceDpi) { Margin = new Padding(0, 0, 10, 8) });
-        _cardsTable.ResumeLayout();
+            _cardsGrid.Controls.Add(new MonitorCard(monitor, DeviceDpi));
+        _cardsGrid.ResumeLayout();
+        _cardsGrid.LayoutCards(force: true);
+        // Membership changes alter the wrap the minimum height must accommodate.
+        // Not during OnLoad — ApplyInitialWindowSize computes it at the real width.
+        if (Visible)
+            UpdateMinimumSize();
     }
 }

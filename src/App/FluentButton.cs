@@ -1,10 +1,12 @@
 using System.Drawing.Drawing2D;
+using System.Runtime.Versioning;
 
 namespace Seamline.App;
 
 /// <summary>Owner-painted rounded button in the Fluent style: accent fill for the
 /// primary action, bordered surface for secondaries, with hover/press/disabled
 /// states and theme-aware colors.</summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class FluentButton : Button
 {
     private bool _hover;

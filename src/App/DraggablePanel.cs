@@ -1,9 +1,12 @@
+using System.Runtime.Versioning;
+
 namespace Seamline.App;
 
 /// <summary>
 /// Bordered child panel with a fake title bar; dragging the title bar moves the
 /// panel within its parent. Base for the overlay's info and control boxes.
 /// </summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal abstract class DraggablePanel : Panel
 {
     private Point? _dragStart;

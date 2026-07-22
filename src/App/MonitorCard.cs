@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Seamline.Core;
 
 namespace Seamline.App;
@@ -8,6 +9,7 @@ namespace Seamline.App;
 /// values. Responsive: reflows its lines and height when the layout resizes it
 /// (§8 M7.5 — replaces the original's "Monitor Information" group boxes).
 /// </summary>
+[SupportedOSPlatform("windows10.0.14393")]
 internal sealed class MonitorCard : CardPanel
 {
     private readonly MonitorInfo _monitor;
@@ -22,9 +24,9 @@ internal sealed class MonitorCard : CardPanel
     private bool _built;
     private int _reflowedWidth = -1;
 
-    /// <summary>Cards are added after the form's Dpi auto-scale pass has run (both
-    /// at startup and on rebuilds), so all geometry is scaled here from deviceDpi —
-    /// never by WinForms.</summary>
+    /// <summary>Cards scale all geometry from deviceDpi themselves — the form's
+    /// framework scaling never touches them (on DPI changes they are rebuilt,
+    /// not rescaled).</summary>
     public MonitorCard(MonitorInfo monitor, int deviceDpi = 96)
     {
         _monitor = monitor;

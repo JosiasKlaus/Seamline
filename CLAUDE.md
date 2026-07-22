@@ -28,10 +28,13 @@ layout — it changes between sessions.
 - **Physical pixels everywhere.** PMv2 DPI declared in app.manifest +
   `ApplicationHighDpiMode` + runtime assert. Overlays use `AutoScaleMode.None`
   with manual physical bounds — WinForms must never rescale them, and DWM must
-  never round their corners. The main window uses `AutoScaleMode.Dpi` as its
-  single scaling authority; dynamically added controls (monitor cards) are
-  built after the scale pass and self-scale from `DeviceDpi` — never both
-  regimes on one control.
+  never round their corners. The main window declares `AutoScaleMode.Dpi`, but
+  the verified reality is: the initial scale pass runs while the form is still
+  empty, so startup chrome is laid out in raw device pixels at launch DPI (the
+  sizing code scales its constants by `DeviceDpi` explicitly; point-size fonts
+  render DPI-scaled on their own). The framework rescales chrome only on a DPI
+  *change*, upon which MainForm rebuilds the monitor cards — cards always
+  self-scale from `DeviceDpi`, never both regimes on one control.
 - **Interop protocol** (`src/Win32/Win32DisplayBackend.cs`): geometry read AND
   written via `ENUM_REGISTRY_SETTINGS`; `dmFields = DM_POSITION` by assignment,
   never OR; stage all monitors (`CDS_UPDATEREGISTRY|CDS_GLOBAL|CDS_NORESET`)
@@ -72,5 +75,5 @@ docs/BEHAVIOR.md. New behavioral differences must be recorded there.
 - After changing `src/Win32/NativeMethods.txt`, refresh
   `src/Win32/Generated.snapshot/` (instructions in its README).
 - The user commits at feature boundaries; releases are tag-driven (`v*` tags —
-  the tag is the version). Maintenance duties and the backlog (resizable main
-  window → separate branch!) are in docs/DEVELOPMENT.md.
+  the tag is the version). Maintenance duties and the backlog are in
+  docs/DEVELOPMENT.md.

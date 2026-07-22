@@ -91,6 +91,11 @@ deliberate, documented decisions.
   live info card per monitor in (x, y) order showing: device name, monitor
   name, friendly name, adapter, resolution, virtual position, orientation,
   primary flag.
+- The window is resizable (maximize included). Extra height goes to the
+  overview; the monitor cards re-wrap into as many equal-width columns as fit
+  and stretch to share the row. The launch size is derived from the content
+  (up to three card columns); the minimum size always keeps the full card
+  wrap, the buttons and an overview strip visible.
 - Adjust is disabled while a session is active. Closing the window triggers
   the shutdown teardown above.
 - While idle, the window re-enumerates on display-settings changes; changes
@@ -137,6 +142,7 @@ Faithfulness was the default; every difference below was an explicit decision.
 - Fluent/Windows 11 styling replaces the original look: system dark/light
   mode, Mica title bar, Windows accent color, rounded owner-drawn controls,
   display-settings-style overview tiles, monitor cards instead of group boxes.
+  The window is resizable with a responsive card grid.
   The overlay session visuals intentionally stay close to the original's
   functional white surfaces.
 - German rollback-dialog captions „Ja"/„Nein" (the original showed untranslated

@@ -74,10 +74,6 @@ real support burden.
 
 ## Backlog & outlook
 
-- **Resizable main window with responsive cards** — attempted once and
-  reverted (resize-repaint artifacts on owner-drawn surfaces; too-narrow
-  default). Prerequisites are in place (`ResizeRedraw`-style full repaints,
-  reflow-capable `MonitorCard`). Explore on a separate branch.
 - **WPF-Fluent shell (optional)** — WPF ships in the same in-box .NET desktop
   framework (zero new dependencies) and has an official Fluent theme since
   .NET 9: real full-bleed Mica and smooth theming for the main window, with the
