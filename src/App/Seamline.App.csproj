@@ -9,11 +9,20 @@
     <EmbeddedResource Include="Resources\seamline-256.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- UseWPF removes System.IO from the SDK's implicit usings; the WinForms-era
+         code (SettingsStore, resource loading) relies on it. -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- M8: WPF-Fluent shell for the main window; the physical-pixel session
+         overlays stay WinForms (see docs/ARCHITECTURE.md, DPI regimes). -->
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>seamline</AssemblyName>
     <ApplicationIcon>seamline.ico</ApplicationIcon>

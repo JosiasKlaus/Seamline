@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 Seamline: Windows multi-monitor alignment utility. C# / .NET 10 LTS,
-WinForms, CsWin32 interop, one self-contained exe. MIT-licensed,
-behavior-derived rewrite of the GPL HwMonitorAlignment.
+WPF-Fluent main window + WinForms session overlays (hybrid, one STA thread),
+CsWin32 interop, one self-contained exe. MIT-licensed, behavior-derived
+rewrite of the GPL HwMonitorAlignment.
 
 Docs: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how it works),
 [docs/BEHAVIOR.md](docs/BEHAVIOR.md) (the behavioral contract + deliberate
@@ -25,16 +26,19 @@ layout — it changes between sessions.
 
 ## Invariants — do not "fix" these
 
-- **Physical pixels everywhere.** PMv2 DPI declared in app.manifest +
-  `ApplicationHighDpiMode` + runtime assert. Overlays use `AutoScaleMode.None`
-  with manual physical bounds — WinForms must never rescale them, and DWM must
-  never round their corners. The main window declares `AutoScaleMode.Dpi`, but
-  the verified reality is: the initial scale pass runs while the form is still
-  empty, so startup chrome is laid out in raw device pixels at launch DPI (the
-  sizing code scales its constants by `DeviceDpi` explicitly; point-size fonts
-  render DPI-scaled on their own). The framework rescales chrome only on a DPI
-  *change*, upon which MainForm rebuilds the monitor cards — cards always
-  self-scale from `DeviceDpi`, never both regimes on one control.
+- **Physical pixels on the overlays.** PMv2 DPI declared in app.manifest +
+  `ApplicationHighDpiMode` + runtime assert. Overlays are WinForms with
+  `AutoScaleMode.None` and manual physical bounds — nothing may ever rescale
+  them, and DWM must never round their corners. The WPF main window works in
+  logical units (fine: it is informational; the overview map is purely
+  proportional). Never move overlay/session surfaces to WPF — logical units
+  are the exact coordinate translation they exist to avoid.
+- **Hybrid message loop.** The WPF dispatcher pumps for both frameworks.
+  `WindowsFormsHost.EnableWindowsFormsInterop()` before `app.Run` is
+  load-bearing: without it, modeless WinForms windows get no keyboard
+  preprocessing — overlay movement keys and Escape go dead, and only in the
+  GUI path (`--align` keeps a WinForms loop and masks it). Test session keys
+  from the normal GUI launch, not just `--align`.
 - **Interop protocol** (`src/Win32/Win32DisplayBackend.cs`): geometry read AND
   written via `ENUM_REGISTRY_SETTINGS`; `dmFields = DM_POSITION` by assignment,
   never OR; stage all monitors (`CDS_UPDATEREGISTRY|CDS_GLOBAL|CDS_NORESET`)

@@ -139,11 +139,12 @@ Faithfulness was the default; every difference below was an explicit decision.
   hint text (original showed silent white).
 
 **Visual redesign (main window only)**
-- Fluent/Windows 11 styling replaces the original look: system dark/light
-  mode, Mica title bar, Windows accent color, rounded owner-drawn controls,
-  display-settings-style overview tiles, monitor cards instead of group boxes.
-  The window is resizable with a responsive card grid.
+- Fluent/Windows 11 styling replaces the original look: the main window and
+  About dialog are WPF with the in-box Fluent theme — system dark/light mode
+  with live switching, Windows accent color (luminance-gated, Seamline-blue
+  fallback), display-settings-style overview tiles, monitor cards instead of
+  group boxes. The window is resizable with a responsive card grid.
   The overlay session visuals intentionally stay close to the original's
-  functional white surfaces.
+  functional white surfaces (and stay WinForms, in physical pixels).
 - German rollback-dialog captions „Ja"/„Nein" (the original showed untranslated
   English buttons next to its German body text).

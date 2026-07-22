@@ -67,6 +67,11 @@ real support burden.
   `src/Win32/NativeMethods.txt`, refresh the vendored generated-code snapshot —
   instructions in `src/Win32/Generated.snapshot/README.md`. If the generator
   ever dies, delete the package reference and build from the snapshot.
+- **Experimental-API pragmas**: `WPF0001` (Fluent `ThemeMode`) and `WFO5001`
+  (WinForms dark mode) are suppressed with justifying comments. When a .NET
+  release stabilizes either API, drop the pragma. If a WPF update changes the
+  Fluent `AccentButton*` resource keys, the accent button silently reverts to
+  the raw system accent — `WpfTheme.ApplyTo` shadows those keys by name.
 - **Licensing discipline**: Seamline (MIT) is a behavior-derived rewrite of the
   GPL HwMonitorAlignment. Never copy or translate code/assets from the original
   repository; reading it to verify behavior is fine. All deliberate behavioral
@@ -74,10 +79,6 @@ real support burden.
 
 ## Backlog & outlook
 
-- **WPF-Fluent shell (optional)** — WPF ships in the same in-box .NET desktop
-  framework (zero new dependencies) and has an official Fluent theme since
-  .NET 9: real full-bleed Mica and smooth theming for the main window, with the
-  physical-pixel WinForms overlays kept as-is. ~3–5 days if ever wanted.
 - **Linux port (outline)** — `Core` moves as-is (.NET is first-class on Linux).
   Needed: a `LinuxDisplayBackend` (X11/XRandR first; RandR's atomic
   multi-output apply maps cleanly onto the stage/commit protocol; Wayland has

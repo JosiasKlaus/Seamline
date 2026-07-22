@@ -44,8 +44,25 @@ internal static class Program
         }
         var controller = new AlignController(backend, layout);
         var coordinator = new AlignSessionCoordinator(controller, layout);
-        Application.Run(new MainForm(backend, layout, controller, coordinator));
-        return 0;
+
+        // M8: WPF-Fluent shell for the main window. The WinForms session overlays
+        // and dialogs run unchanged on this same STA thread — the WPF dispatcher
+        // pumps the one message loop both frameworks share.
+        //
+        // Required for that sharing: the WPF pump does not run WinForms keyboard
+        // preprocessing for modeless forms, so without this call the overlays
+        // never see ProcessCmdKey — every movement key and Escape is dead
+        // (--align is unaffected and masks it: that path keeps the WinForms loop).
+        System.Windows.Forms.Integration.WindowsFormsHost.EnableWindowsFormsInterop();
+        var app = new System.Windows.Application
+        {
+            ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose,
+        };
+        WpfTheme.ApplyTo(app.Resources); // app-level: one palette every window follows
+#pragma warning disable WPF0001 // experimental Fluent ThemeMode API, accepted for M8 (like WFO5001 for M7)
+        app.ThemeMode = System.Windows.ThemeMode.System;
+#pragma warning restore WPF0001
+        return app.Run(new MainWindow(backend, layout, controller, coordinator));
     }
 
     private static int RunAlignSession(IDisplayBackend backend, bool verifyOnly)

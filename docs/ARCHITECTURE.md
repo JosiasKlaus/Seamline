@@ -10,14 +10,29 @@ build/release/maintenance topics live in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 Longevity is the project's #1 goal — Seamline replaces a Python/PySide2 tool that
 died of dependency rot. Every piece of the stack is Microsoft-shipped and in-box:
-the runtime, the UI framework, and the interop generator (a build-time-only
+the runtime, both UI frameworks, and the interop generator (a build-time-only
 dependency whose generated output is additionally snapshotted into the repo).
-WinForms specifically was chosen because, under Per-Monitor-V2 DPI awareness, it
-is the only mainstream .NET UI stack that works natively in **physical device
-pixels** — `Screen` bounds, form bounds, cursor position, and GDI+ painting map
-1:1 onto the Win32 virtual-screen coordinates the whole domain model uses. WPF
-and WinUI lay out in scaled logical units, which is exactly the coordinate
-translation this tool exists to avoid.
+
+The app is a **WPF + WinForms hybrid** (M8), split along the DPI requirement:
+
+- The **session overlays are WinForms**, because under Per-Monitor-V2 DPI
+  awareness WinForms is the only mainstream .NET UI stack that works natively in
+  **physical device pixels** — `Screen` bounds, form bounds, cursor position,
+  and GDI+ painting map 1:1 onto the Win32 virtual-screen coordinates the whole
+  domain model uses. WPF and WinUI lay out in scaled logical units, which is
+  exactly the coordinate translation the measurement surfaces exist to avoid.
+- The **main window and About dialog are WPF** with the in-box Fluent theme
+  (`ThemeMode.System`): system dark/light with live switching and Win11
+  styling, none of it hand-painted. The main window is informational — no
+  physical-pixel requirement — so WPF's logical units are harmless there.
+
+Both frameworks share the one STA thread; the WPF dispatcher pumps the message
+loop. That sharing has one hard requirement, learned the empirical way:
+`WindowsFormsHost.EnableWindowsFormsInterop()` must run before `app.Run`,
+because the WPF pump performs no WinForms keyboard preprocessing for modeless
+forms — without it `ProcessCmdKey` never fires and the overlays ignore every
+movement key and Escape (the `--align` path keeps a pure WinForms loop and
+masks the failure).
 
 ## Solution layout
 
@@ -25,7 +40,7 @@ translation this tool exists to avoid.
 Seamline.slnx
 ├─ src/Core/    net10.0          zero dependencies, no Windows references
 ├─ src/Win32/   net10.0-windows  CsWin32 interop only
-├─ src/App/     net10.0-windows  WinForms exe (seamline.exe)
+├─ src/App/     net10.0-windows  WPF + WinForms exe (seamline.exe)
 └─ tests/Core.Tests/             xUnit against a FakeBackend
 ```
 
@@ -121,32 +136,34 @@ the Per-Monitor-V2 awareness check backing the startup assert.
 
 ## App
 
-**Per-monitor DPI has two regimes.** The main window declares WinForms
-`AutoScaleMode.Dpi`, whose initial pass runs while the form is still empty — so
-startup chrome is laid out in raw device pixels at the launch DPI (the sizing
-code scales its constants by `DeviceDpi` explicitly, and point-size fonts render
-DPI-scaled on their own); the framework rescales the chrome only on a live DPI
-change, upon which the monitor cards are rebuilt — cards always self-scale from
-`DeviceDpi`. The overlays opt out entirely: `AutoScaleMode.None`, manual bounds
-set to the monitor's physical rectangle before `Show()` — WinForms' rescaling
-machinery never touches the drawing surface, and a borderless window exactly
-covering one monitor never straddles a DPI boundary. PMv2 awareness is declared
-three ways: app.manifest, `ApplicationHighDpiMode`, and a runtime assert.
+**Per-monitor DPI has two regimes.** The WPF main window works in logical
+units — WPF handles per-monitor rescaling natively, and nothing in the window
+needs physical pixels (the overview miniature is a purely proportional map, so
+physical-pixel monitor coordinates render correctly at any scale). The WinForms
+overlays opt out entirely: `AutoScaleMode.None`, manual bounds set to the
+monitor's physical rectangle before `Show()` — WinForms' rescaling machinery
+never touches the drawing surface, and a borderless window exactly covering one
+monitor never straddles a DPI boundary. PMv2 awareness is declared three ways:
+app.manifest, `ApplicationHighDpiMode`, and a runtime assert; WPF respects the
+manifest.
 
-**Main-window layout.** The resizable window is one `TableLayoutPanel` with a
-percent row for the overview (absorbs all extra height) above autosize rows for
-the section label, the card grid and the buttons. `MonitorCardGrid` lays the
-monitor cards out manually — columns from the available width (270–480 logical
-px per card), cards stretched to share the row at equal heights — because
-TableLayoutPanel's autosize negotiation with self-sizing children is not
-deterministic under live resize. Sharp edge (empirically verified): a child that
-sets its own `Height` *during* its parent's layout pass is silently dropped —
-WinForms marks the mid-layout container deferred and never re-runs it, so the
-autosize row keeps the stale height until an unrelated event. The grid heals
-this by posting a follow-up `PerformLayout`; posted messages run before
-`WM_PAINT`, so the stale intermediate layout is never painted. Launch size and
-the content-derived minimum size are computed in `OnLoad` from `DeviceDpi` and
-the measured card wrap.
+**Main-window layout (WPF).** One `Grid`: a star row for the overview (absorbs
+all extra height) above auto rows for the section label, the cards and the
+buttons. `CardWrapPanel` wraps the monitor cards into as many equal-width
+columns as fit (cards 270–480 logical px, stretched to share the row at equal
+heights) via a plain `Measure`/`Arrange` pair — the mid-layout staleness the
+WinForms grid had to heal around is structurally impossible in WPF's two-pass
+protocol. Cards are a `DataTemplate` bound straight to `MonitorInfo` (its
+`INotifyPropertyChanged` drives live position/orientation updates; membership
+changes rebuild the `ItemsSource`). Launch height comes from
+`SizeToContent="Height"` (the overview starts with an explicit height, handed
+to the star row in `Loaded`), clamped to the work area; the minimum size is
+content-derived so the card wrap at minimum width always stays visible.
+`ThemeMode.System` supplies the Fluent look; `WpfTheme` bridges the shared
+`ModernTheme` palette into app-level `DynamicResource` brushes that refresh on
+theme switches — including shadowing the Fluent `AccentButtonStyle` state
+brushes, so the accent button uses the same luminance-gated accent as every
+other Seamline surface instead of the raw system accent.
 
 **Alignment session UI.** `AlignSessionCoordinator` creates one `OverlayForm`
 per monitor, routes keys to the controller, runs Apply → rollback-countdown →
@@ -156,11 +173,12 @@ Selection = OS focus; the focused overlay shows a badge and re-resolves the
 row/column line references. Overlay surfaces stay white with pinned colors in
 every theme: they are measurement surfaces, not chrome.
 
-**Theming (main window only).** `ModernTheme` provides Fluent/Win11 styling on
-plain WinForms: system dark/light with live switching, the user's Windows accent
-color (gated to a usable luminance band, with a foreground variant for
-links/focus in dark mode), Segoe UI Variable, owner-drawn rounded buttons
-(`FluentButton`) and cards (`CardPanel`/`MonitorCard`), and a Win11-display-
-settings-style overview. Owner-drawn controls resolve their backdrop via the
+**Theming.** `ModernTheme` remains the single palette authority: system
+dark/light detection and the Windows accent color gated to a usable luminance
+band (a too-light/too-dark system accent falls back to the Seamline blue). The
+WPF side consumes it through `WpfTheme`'s brush bridge; the WinForms side
+(RollbackDialog's owner-drawn `FluentButton`, the overlay panels) keeps using
+it directly. Owner-drawn WinForms controls resolve their backdrop via the
 nearest *opaque* ancestor color — `Color.Transparent` parents blit as opaque
-black/white in GDI+ double buffers.
+black/white in GDI+ double buffers. Overlay surfaces stay white with pinned
+colors in every theme: they are measurement surfaces, not chrome.
