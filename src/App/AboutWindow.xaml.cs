@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Windows.Media.Imaging;
@@ -6,8 +5,8 @@ using System.Windows.Media.Imaging;
 namespace Seamline.App;
 
 /// <summary>WPF port of the About dialog (M8): logo, version, description,
-/// acknowledgement link to the original, third-party notices. Close is both
-/// the default and the Escape action, like the WinForms version.</summary>
+/// third-party notices (the acknowledgement of the original lives in the
+/// README). Close is both the default and the Escape action.</summary>
 [SupportedOSPlatform("windows10.0.14393")]
 internal sealed partial class AboutWindow : System.Windows.Window
 {
@@ -48,7 +47,4 @@ internal sealed partial class AboutWindow : System.Windows.Window
         image.Freeze();
         return image;
     }
-
-    private void OnNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
-        => Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
 }

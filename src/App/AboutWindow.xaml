@@ -22,11 +22,6 @@
                        Foreground="{DynamicResource TextSecondaryBrush}" />
             <TextBlock FontSize="12" TextWrapping="Wrap" Margin="0,0,0,14"
                        Text="Align your physical multi-monitor setup with Windows' virtual screen layout — pixel by pixel." />
-            <TextBlock FontSize="12" TextWrapping="Wrap" Margin="0,0,0,14">
-                <Run Text="A from-scratch, behavior-compatible rewrite of " /><Hyperlink
-                    NavigateUri="https://github.com/Chrisg2000/HwMonitorAlignment"
-                    RequestNavigate="OnNavigate"><Run Text="HwMonitorAlignment" /></Hyperlink><Run Text="." />
-            </TextBlock>
             <TextBlock FontSize="12" TextWrapping="Wrap" Margin="0,0,0,18"
                        Text="Third-party components:&#10;.NET Runtime (MIT) — Microsoft&#10;CsWin32 (MIT) — Microsoft" />
             <Button Content="Close" MinWidth="96" MinHeight="32" HorizontalAlignment="Right"
