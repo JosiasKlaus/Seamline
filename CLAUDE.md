@@ -38,7 +38,10 @@ layout — it changes between sessions.
   load-bearing: without it, modeless WinForms windows get no keyboard
   preprocessing — overlay movement keys and Escape go dead, and only in the
   GUI path (`--align` keeps a WinForms loop and masks it). Test session keys
-  from the normal GUI launch, not just `--align`.
+  from the normal GUI launch, not just `--align`. Also: `SystemEvents`
+  handlers arrive on a broadcast thread here (on the UI thread in a pure
+  WinForms app) — every handler must marshal via `Dispatcher.BeginInvoke`
+  before touching the controller or UI, or the failure is silently swallowed.
 - **Interop protocol** (`src/Win32/Win32DisplayBackend.cs`): geometry read AND
   written via `ENUM_REGISTRY_SETTINGS`; `dmFields = DM_POSITION` by assignment,
   never OR; stage all monitors (`CDS_UPDATEREGISTRY|CDS_GLOBAL|CDS_NORESET`)

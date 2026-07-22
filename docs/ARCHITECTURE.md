@@ -27,12 +27,17 @@ The app is a **WPF + WinForms hybrid** (M8), split along the DPI requirement:
   physical-pixel requirement — so WPF's logical units are harmless there.
 
 Both frameworks share the one STA thread; the WPF dispatcher pumps the message
-loop. That sharing has one hard requirement, learned the empirical way:
-`WindowsFormsHost.EnableWindowsFormsInterop()` must run before `app.Run`,
-because the WPF pump performs no WinForms keyboard preprocessing for modeless
-forms — without it `ProcessCmdKey` never fires and the overlays ignore every
-movement key and Escape (the `--align` path keeps a pure WinForms loop and
-masks the failure).
+loop. That sharing has two hard requirements, both learned the empirical way:
+
+- `WindowsFormsHost.EnableWindowsFormsInterop()` must run before `app.Run`,
+  because the WPF pump performs no WinForms keyboard preprocessing for modeless
+  forms — without it `ProcessCmdKey` never fires and the overlays ignore every
+  movement key and Escape (the `--align` path keeps a pure WinForms loop and
+  masks the failure).
+- `SystemEvents` handlers arrive on a broadcast thread under the WPF pump
+  (a pure WinForms app receives them on the UI thread) — they must marshal via
+  `Dispatcher.BeginInvoke` before touching anything UI-bound, or the
+  cross-thread exception is swallowed and the window silently goes stale.
 
 ## Solution layout
 

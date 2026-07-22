@@ -150,12 +150,20 @@ internal sealed partial class MainWindow : System.Windows.Window
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
     {
-        // Our own Apply commits also raise this; sessions run on a frozen set, so
-        // only refresh while Idle and catch up after the session ends.
-        if (_controller.State == AlignSessionState.Idle)
-            RefreshFromSystem();
-        else
-            _displayChangedDuringSession = true;
+        // Under the WPF pump SystemEvents delivers on a broadcast thread (the
+        // WinForms shell received it on the UI thread) — marshal before touching
+        // the controller or anything UI-bound. Verified: unmarshaled, the cards
+        // rebuild threw cross-thread and RefreshFromSystem's catch silently ate
+        // it, leaving the window stale until an unrelated re-render.
+        Dispatcher.BeginInvoke(() =>
+        {
+            // Our own Apply commits also raise this; sessions run on a frozen
+            // set, so only refresh while Idle and catch up after the session ends.
+            if (_controller.State == AlignSessionState.Idle)
+                RefreshFromSystem();
+            else
+                _displayChangedDuringSession = true;
+        });
     }
 
     private void RefreshFromSystem()
