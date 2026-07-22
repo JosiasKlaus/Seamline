@@ -5,10 +5,15 @@ namespace Seamline.App;
 
 /// <summary>Owner-painted rounded button in the Fluent style: accent fill for the
 /// primary action, bordered surface for secondaries, with hover/press/disabled
-/// states and theme-aware colors.</summary>
+/// states. Colors are theme-aware by default; overlay-hosted buttons set
+/// <see cref="PinnedDark"/> to pin the dark card palette instead (the overlay
+/// boxes are pinned-dark cards on the white measurement surface and must not
+/// follow the system theme).</summary>
 [SupportedOSPlatform("windows10.0.14393")]
 internal sealed class FluentButton : Button
 {
+    private static readonly Color PinnedAccent = Color.FromArgb(15, 125, 193);
+
     private bool _hover;
     private bool _pressed;
 
@@ -24,6 +29,10 @@ internal sealed class FluentButton : Button
     /// <summary>Accent-filled primary action.</summary>
     [System.ComponentModel.DefaultValue(false)]
     public bool Primary { get; init; }
+
+    /// <summary>Pin the dark overlay-card palette regardless of the system theme.</summary>
+    [System.ComponentModel.DefaultValue(false)]
+    public bool PinnedDark { get; init; }
 
     protected override void OnMouseEnter(EventArgs e)
     {
@@ -90,13 +99,26 @@ internal sealed class FluentButton : Button
         Color text;
         if (!Enabled)
         {
-            fill = ModernTheme.SurfaceDisabled;
-            text = ModernTheme.TextSecondary;
+            fill = PinnedDark ? Color.FromArgb(48, 48, 48) : ModernTheme.SurfaceDisabled;
+            text = PinnedDark ? Color.FromArgb(128, 128, 128) : ModernTheme.TextSecondary;
         }
         else if (Primary)
         {
-            fill = _pressed ? ModernTheme.AccentPressed : _hover ? ModernTheme.AccentHover : ModernTheme.Accent;
+            fill = PinnedDark
+                ? _pressed ? Blend(PinnedAccent, Color.Black, 0.18f)
+                    : _hover ? Blend(PinnedAccent, Color.White, 0.15f)
+                    : PinnedAccent
+                : _pressed ? ModernTheme.AccentPressed
+                    : _hover ? ModernTheme.AccentHover
+                    : ModernTheme.Accent;
             text = Color.White;
+        }
+        else if (PinnedDark)
+        {
+            fill = _pressed ? Color.FromArgb(48, 48, 48)
+                : _hover ? Color.FromArgb(66, 66, 66)
+                : Color.FromArgb(58, 58, 58);
+            text = Color.FromArgb(235, 235, 235);
         }
         else
         {
@@ -114,7 +136,10 @@ internal sealed class FluentButton : Button
         {
             // Inset keeps the full stroke inside the control — a centered stroke
             // loses half a pixel at the right/bottom edges.
-            using var border = new Pen(Focused ? ModernTheme.AccentForeground : ModernTheme.CardBorder)
+            Color borderColor = Focused
+                ? PinnedDark ? Color.FromArgb(99, 170, 214) : ModernTheme.AccentForeground
+                : PinnedDark ? Color.FromArgb(78, 78, 78) : ModernTheme.CardBorder;
+            using var border = new Pen(borderColor)
             {
                 Alignment = System.Drawing.Drawing2D.PenAlignment.Inset,
             };
@@ -132,4 +157,9 @@ internal sealed class FluentButton : Button
         TextRenderer.DrawText(g, Text, Font, ClientRectangle, text,
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
+
+    private static Color Blend(Color from, Color to, float amount) => Color.FromArgb(255,
+        (int)(from.R + (to.R - from.R) * amount),
+        (int)(from.G + (to.G - from.G) * amount),
+        (int)(from.B + (to.B - from.B) * amount));
 }

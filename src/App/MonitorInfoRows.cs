@@ -4,9 +4,8 @@ using Seamline.Core;
 namespace Seamline.App;
 
 /// <summary>Label-above-bold-value rows describing one monitor, live-updating,
-/// sized to content. Shared by the overlay info box (manual DPI, AutoScaleMode.None
-/// host) and the main window (pass 96 — the form's Dpi autoscaling is the single
-/// scaling authority there).</summary>
+/// sized to content. Overlay-only since M8 (the WPF cards do their own layout);
+/// manual DPI scaling from deviceDpi, pinned light colors like its host.</summary>
 [SupportedOSPlatform("windows10.0.14393")]
 internal sealed class MonitorInfoRows : Panel
 {
@@ -30,6 +29,8 @@ internal sealed class MonitorInfoRows : Panel
             var captionLabel = new Label
             {
                 Text = caption, Font = labelFont, AutoSize = true, Location = new Point(x, y),
+                // Pinned secondary gray (not ModernTheme.TextSecondary — no theming here).
+                ForeColor = Color.FromArgb(160, 160, 160),
             };
             Controls.Add(captionLabel);
             y += captionLabel.PreferredHeight;

@@ -110,20 +110,6 @@ internal static class ModernTheme
         return path;
     }
 
-    // Main-window/dialog buttons are FluentButton instances; only the
-    // overlay-hosted buttons keep a style helper because they pin light colors.
-
-    /// <summary>Buttons hosted on the always-white overlay panels: flat, light,
-    /// theme-independent (pinned colors).</summary>
-    public static void StyleOverlayButton(Button button)
-    {
-        button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 1;
-        button.FlatAppearance.BorderColor = Color.FromArgb(200, 200, 200);
-        button.BackColor = Color.White;
-        button.ForeColor = Color.Black;
-    }
-
     private static Color Blend(Color from, Color to, float amount) => Color.FromArgb(255,
         (int)(from.R + (to.R - from.R) * amount),
         (int)(from.G + (to.G - from.G) * amount),

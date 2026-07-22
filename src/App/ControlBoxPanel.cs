@@ -48,8 +48,9 @@ internal sealed class ControlBoxPanel : DraggablePanel
                 Minimum = min, Maximum = max, DecimalPlaces = decimals, Font = font,
                 Width = (int)(70 * scale), Location = new Point(x + controlColumn, y),
                 Value = Math.Clamp(get(), min, max),
-                // Pinned: lives on the always-white overlay, independent of the theme.
-                BackColor = Color.White, ForeColor = Color.Black,
+                // Pinned dark, matching the card — independent of the theme.
+                BackColor = Color.FromArgb(32, 32, 32), ForeColor = Color.FromArgb(235, 235, 235),
+                BorderStyle = BorderStyle.FixedSingle,
             };
             numeric.ValueChanged += (_, _) => set(numeric.Value);
             _subscriptions.Add(settings.WhenChanged(propertyName, () =>
@@ -82,22 +83,23 @@ internal sealed class ControlBoxPanel : DraggablePanel
             v => settings.ShowInfoBox = v, nameof(AlignSettings.ShowInfoBox));
 
         y += (int)(8 * scale);
-        Button AddButton(string caption, Action onClick)
+        Button AddButton(string caption, Action onClick, bool primary = false)
         {
-            var button = new Button
+            var button = new FluentButton
             {
                 Text = caption, Font = font,
                 Size = new Size((int)(220 * scale), (int)(30 * scale)),
                 Location = new Point(x, y),
+                PinnedDark = true, // pinned dark card on the white overlay, theme-independent
+                Primary = primary,
             };
-            ModernTheme.StyleOverlayButton(button);
             button.Click += (_, _) => onClick();
             Controls.Add(button);
             y += button.Height + rowGap;
             return button;
         }
 
-        AddButton("Apply", coordinator.RequestApply);
+        AddButton("Apply", coordinator.RequestApply, primary: true);
         AddButton("Close", coordinator.RequestClose);
         AddButton("Reset", coordinator.RequestReset);
 

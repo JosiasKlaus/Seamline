@@ -138,13 +138,15 @@ Faithfulness was the default; every difference below was an explicit decision.
 - Selection badge + accented info-box title on the focused overlay; offscreen
   hint text (original showed silent white).
 
-**Visual redesign (main window only)**
+**Visual redesign**
 - Fluent/Windows 11 styling replaces the original look: the main window and
   About dialog are WPF with the in-box Fluent theme — system dark/light mode
   with live switching, Windows accent color (luminance-gated, Seamline-blue
   fallback), display-settings-style overview tiles, monitor cards instead of
   group boxes. The window is resizable with a responsive card grid.
-  The overlay session visuals intentionally stay close to the original's
-  functional white surfaces (and stay WinForms, in physical pixels).
+- The overlay measurement surfaces stay white with black lines in every theme
+  (and stay WinForms, in physical pixels), but the info/control boxes on them
+  are restyled as rounded pinned-dark cards — a fixed dark palette with an
+  accent selection pill, never following the system theme.
 - German rollback-dialog captions „Ja"/„Nein" (the original showed untranslated
   English buttons next to its German body text).
