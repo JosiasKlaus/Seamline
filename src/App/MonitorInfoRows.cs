@@ -18,8 +18,8 @@ internal sealed class MonitorInfoRows : Panel
     {
         _monitor = monitor;
         float scale = deviceDpi / 96f;
-        var labelFont = new Font("Segoe UI", 8f * scale);
-        var valueFont = new Font("Segoe UI", 9f * scale, FontStyle.Bold);
+        var labelFont = ModernTheme.UiFont(8f * scale);
+        var valueFont = ModernTheme.UiFont(9f * scale, FontStyle.Bold);
         int x = (int)(4 * scale);
         int y = (int)(4 * scale);
 

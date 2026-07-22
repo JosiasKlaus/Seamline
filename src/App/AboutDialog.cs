@@ -15,7 +15,10 @@ internal sealed class AboutDialog : Form
         StartPosition = FormStartPosition.CenterParent;
         AutoScaleMode = AutoScaleMode.Dpi;
         AutoScaleDimensions = new SizeF(96F, 96F);
-        ClientSize = new Size(500, 260);
+        ClientSize = new Size(560, 290);
+        // Text column: wraps instead of clipping at the dialog edge.
+        const int textLeft = 166;
+        var textMax = new Size(560 - textLeft - 20, 0);
 
         var iconBox = new PictureBox
         {
@@ -27,7 +30,7 @@ internal sealed class AboutDialog : Form
         var heading = new Label
         {
             Text = "Seamline",
-            Font = new Font("Segoe UI", 20f, FontStyle.Bold),
+            Font = ModernTheme.UiFont(20f, FontStyle.Bold),
             AutoSize = true,
             Location = new Point(162, 20),
         };
@@ -36,13 +39,14 @@ internal sealed class AboutDialog : Form
             Text = $"Version {FormatVersion(Application.ProductVersion)}",
             AutoSize = true,
             Location = new Point(166, 66),
-            ForeColor = Color.FromArgb(96, 96, 96),
+            ForeColor = SystemColors.GrayText, // remapped by dark mode
         };
         var description = new Label
         {
-            Text = "Align your physical multi-monitor setup with Windows'\nvirtual screen layout — pixel by pixel.",
+            Text = "Align your physical multi-monitor setup with Windows' virtual screen layout — pixel by pixel.",
             AutoSize = true,
-            Location = new Point(166, 92),
+            MaximumSize = textMax,
+            Location = new Point(textLeft, 92),
         };
         const string acknowledgementText = "A from-scratch, behavior-compatible rewrite of HwMonitorAlignment.";
         const string linkTarget = "HwMonitorAlignment";
@@ -50,8 +54,10 @@ internal sealed class AboutDialog : Form
         {
             Text = acknowledgementText,
             AutoSize = true,
-            Location = new Point(166, 136),
+            MaximumSize = textMax,
+            Location = new Point(textLeft, 140),
             LinkArea = new LinkArea(acknowledgementText.IndexOf(linkTarget, StringComparison.Ordinal), linkTarget.Length),
+            LinkColor = ModernTheme.AccentForeground, // lightened in dark mode
         };
         acknowledgement.LinkClicked += (_, _) => Process.Start(new ProcessStartInfo(
             "https://github.com/Chrisg2000/HwMonitorAlignment") { UseShellExecute = true });
@@ -59,19 +65,21 @@ internal sealed class AboutDialog : Form
         {
             Text = "Third-party components:\n.NET Runtime (MIT) — Microsoft\nCsWin32 (MIT) — Microsoft",
             AutoSize = true,
-            Location = new Point(166, 162),
+            MaximumSize = textMax,
+            Location = new Point(textLeft, 180),
         };
-        var closeButton = new Button
+        var closeButton = new FluentButton
         {
             Text = "Close",
             DialogResult = DialogResult.OK,
-            Size = new Size(90, 28),
-            Location = new Point(390, 218),
+            Location = new Point(444, 242),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
         };
 
         Controls.AddRange([iconBox, heading, version, description, acknowledgement, components, closeButton]);
         AcceptButton = closeButton;
         CancelButton = closeButton;
+        Disposed += (_, _) => heading.Font.Dispose();
     }
 
     // InformationalVersion carries "+<40-char git sha>"; show "0.9.0 (3df9238)"
@@ -89,6 +97,11 @@ internal sealed class AboutDialog : Form
     {
         using Stream? stream = Assembly.GetExecutingAssembly()
             .GetManifestResourceStream("Seamline.App.Resources.seamline-256.png");
-        return stream is null ? null : Image.FromStream(stream);
+        if (stream is null)
+            return null;
+        // Copy the pixels: GDI+ requires the source stream to outlive an Image
+        // created with FromStream, and this stream is disposed right here.
+        using var decoded = Image.FromStream(stream);
+        return new Bitmap(decoded);
     }
 }

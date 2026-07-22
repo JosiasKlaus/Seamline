@@ -69,6 +69,8 @@ internal sealed class OverlayForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        // Windows 11 must never round an overlay's corners — coverage is pixel-exact.
+        Seamline.Win32.DwmWindowCorners.PreventRounding(Handle);
         if (_infoBox is not null)
             return;
         // DeviceDpi is only correct for the target monitor once the handle exists.
@@ -153,7 +155,7 @@ internal sealed class OverlayForm : Form
     {
         float scale = DeviceDpi / 96f;
         const string text = "Selected";
-        using var font = new Font("Segoe UI", 10f * scale, FontStyle.Bold);
+        using var font = ModernTheme.UiFont(10f * scale, FontStyle.Bold);
         SizeF textSize = g.MeasureString(text, font);
         float w = textSize.Width + 28f * scale;
         float h = textSize.Height + 10f * scale;
@@ -193,7 +195,7 @@ internal sealed class OverlayForm : Form
     private void DrawOffscreenHint(Graphics g)
     {
         float scale = DeviceDpi / 96f;
-        using var font = new Font("Segoe UI", 11f * scale);
+        using var font = ModernTheme.UiFont(11f * scale);
         using var brush = new SolidBrush(Color.FromArgb(120, 120, 120));
         using var format = new StringFormat { Alignment = StringAlignment.Center };
         string hint = "The alignment lines lie outside this monitor's visible area.\n"

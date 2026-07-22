@@ -12,7 +12,10 @@ internal abstract class DraggablePanel : Panel
     {
         float scale = deviceDpi / 96f;
         BorderStyle = BorderStyle.FixedSingle;
+        // Pinned light colors: these panels live on the always-white overlay surface
+        // and must not follow the system dark theme.
         BackColor = Color.FromArgb(245, 245, 245);
+        ForeColor = Color.Black;
         AutoSize = false;
 
         TitleBar = new Label
@@ -23,7 +26,8 @@ internal abstract class DraggablePanel : Panel
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding((int)(8 * scale), 0, 0, 0),
             BackColor = Color.FromArgb(220, 220, 220),
-            Font = new Font("Segoe UI", 9f * scale, FontStyle.Bold),
+            ForeColor = Color.Black,
+            Font = ModernTheme.UiFont(9f * scale, FontStyle.Bold),
             Cursor = Cursors.SizeAll,
         };
         Controls.Add(TitleBar);
@@ -44,6 +48,7 @@ internal abstract class DraggablePanel : Panel
             }
         };
         TitleBar.MouseUp += (_, _) => _dragStart = null;
+        Disposed += (_, _) => TitleBar.Font.Dispose();
     }
 
     protected Label TitleBar { get; }

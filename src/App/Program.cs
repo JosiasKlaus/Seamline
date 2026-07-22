@@ -13,6 +13,9 @@ internal static class Program
     private static int Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+#pragma warning disable WFO5001 // experimental WinForms dark-mode API, accepted for M7
+        Application.SetColorMode(SystemColorMode.System);
+#pragma warning restore WFO5001
 
         // The entire coordinate model assumes physical device pixels; anything other
         // than Per-Monitor-V2 awareness silently breaks line math on mixed-DPI setups.

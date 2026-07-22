@@ -46,19 +46,20 @@ internal sealed class RollbackDialog : Form
             AutoSize = true,
             Location = new Point(64, 60),
         };
-        var yesButton = new Button
+        var yesButton = new FluentButton
         {
             Text = "Ja",
             DialogResult = DialogResult.Yes,
-            Size = new Size(90, 28),
-            Location = new Point(180, 92),
+            Size = new Size(90, 30),
+            Location = new Point(174, 90),
         };
-        _noButton = new Button
+        _noButton = new FluentButton
         {
             Text = "Nein",
             DialogResult = DialogResult.No,
-            Size = new Size(90, 28),
-            Location = new Point(276, 92),
+            Primary = true, // the default (and safe) answer gets the accent
+            Size = new Size(90, 30),
+            Location = new Point(272, 90),
         };
 
         Controls.AddRange([icon, message, _countdownLabel, yesButton, _noButton]);

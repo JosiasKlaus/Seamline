@@ -14,7 +14,7 @@ internal sealed class ControlBoxPanel : DraggablePanel
         : base("Control Box", deviceDpi)
     {
         float scale = deviceDpi / 96f;
-        var font = new Font("Segoe UI", 9f * scale);
+        var font = ModernTheme.UiFont(9f * scale);
         int x = (int)(10 * scale);
         int y = TitleBar.Height + (int)(10 * scale);
         int rowGap = (int)(6 * scale);
@@ -26,6 +26,9 @@ internal sealed class ControlBoxPanel : DraggablePanel
             {
                 Text = caption, Font = font, AutoSize = true,
                 Location = new Point(x, y), Checked = get(),
+                // Flat = owner-drawn glyph in the pinned colors; the visual-style
+                // glyph would render with dark-theme assets on this light panel.
+                FlatStyle = FlatStyle.Flat,
             };
             box.CheckedChanged += (_, _) => set(box.Checked);
             _subscriptions.Add(settings.WhenChanged(propertyName, () => box.Checked = get()));
@@ -45,6 +48,8 @@ internal sealed class ControlBoxPanel : DraggablePanel
                 Minimum = min, Maximum = max, DecimalPlaces = decimals, Font = font,
                 Width = (int)(70 * scale), Location = new Point(x + controlColumn, y),
                 Value = Math.Clamp(get(), min, max),
+                // Pinned: lives on the always-white overlay, independent of the theme.
+                BackColor = Color.White, ForeColor = Color.Black,
             };
             numeric.ValueChanged += (_, _) => set(numeric.Value);
             _subscriptions.Add(settings.WhenChanged(propertyName, () =>
@@ -85,6 +90,7 @@ internal sealed class ControlBoxPanel : DraggablePanel
                 Size = new Size((int)(220 * scale), (int)(30 * scale)),
                 Location = new Point(x, y),
             };
+            ModernTheme.StyleOverlayButton(button);
             button.Click += (_, _) => onClick();
             Controls.Add(button);
             y += button.Height + rowGap;
@@ -101,6 +107,7 @@ internal sealed class ControlBoxPanel : DraggablePanel
             foreach (IDisposable s in _subscriptions)
                 s.Dispose();
             _subscriptions.Clear();
+            font.Dispose();
         };
     }
 }

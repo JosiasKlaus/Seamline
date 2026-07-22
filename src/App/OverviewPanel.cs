@@ -4,16 +4,16 @@ using Seamline.Core;
 namespace Seamline.App;
 
 /// <summary>
-/// Non-interactive miniature of the virtual screen: gradient monitor tiles with
-/// white borders and big white index numbers on a dark background, like the
-/// original. The fit transform is computed from scratch on every paint and the
-/// panel repaints on LayoutChanged (post-apply/membership — never pending edits).
+/// Non-interactive miniature of the virtual screen, drawn like Windows 11's own
+/// display settings: flat rounded tiles on a card surface, the primary in the
+/// accent color, centered index numbers (§8 M7.5 — replaces the original's
+/// gradient/border look). The fit transform is computed from scratch on every
+/// paint; repaints on LayoutChanged (post-apply/membership — never pending edits).
 /// </summary>
 internal sealed class OverviewPanel : Panel
 {
-    private const int FitMargin = 10;
-    private static readonly Color GradientStart = Color.FromArgb(15, 125, 193);  // top-right
-    private static readonly Color GradientEnd = Color.FromArgb(119, 196, 122);   // bottom-left
+    private const int FitMargin = 24;
+    private const float TileRadius = 6f;
 
     private readonly MonitorLayout _layout;
     private readonly Action _invalidate;
@@ -22,7 +22,10 @@ internal sealed class OverviewPanel : Panel
     {
         _layout = layout;
         DoubleBuffered = true;
-        BackColor = Color.FromArgb(100, 100, 100); // original's neutral mid-gray
+        // Full repaint on any size change — partial invalidation smears the
+        // rounded border across the newly exposed area.
+        SetStyle(ControlStyles.ResizeRedraw, true);
+        BackColor = ModernTheme.WindowBackground;
         _invalidate = Invalidate;
         layout.LayoutChanged += _invalidate;
         Disposed += (_, _) => layout.LayoutChanged -= _invalidate;
@@ -31,11 +34,24 @@ internal sealed class OverviewPanel : Panel
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        if (_layout.Count == 0)
-            return;
-
         Graphics g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        // The card surface.
+        var cardRect = new RectangleF(0f, 0f, Width - 1f, Height - 1f);
+        using (GraphicsPath cardPath = ModernTheme.RoundedPath(cardRect, 8f))
+        {
+            using (var fill = new SolidBrush(ModernTheme.CardBackground))
+                g.FillPath(fill, cardPath);
+            using var borderPen = new Pen(ModernTheme.CardBorder)
+            {
+                Alignment = System.Drawing.Drawing2D.PenAlignment.Inset,
+            };
+            g.DrawPath(borderPen, cardPath);
+        }
+
+        if (_layout.Count == 0)
+            return;
 
         // Bounding rectangle of all monitors in virtual-screen coordinates.
         int vLeft = _layout.Monitors.Min(m => m.PositionX);
@@ -54,21 +70,18 @@ internal sealed class OverviewPanel : Panel
         foreach (MonitorInfo monitor in _layout.Monitors)
         {
             var rect = new RectangleF(
-                monitor.PositionX * scale + offsetX,
-                monitor.PositionY * scale + offsetY,
-                monitor.ScreenWidth * scale,
-                monitor.ScreenHeight * scale);
+                monitor.PositionX * scale + offsetX + 2f,
+                monitor.PositionY * scale + offsetY + 2f,
+                monitor.ScreenWidth * scale - 4f,
+                monitor.ScreenHeight * scale - 4f);
+            if (rect.Width < 4f || rect.Height < 4f)
+                continue;
 
-            using var gradient = new LinearGradientBrush(
-                new PointF(rect.Right, rect.Top), new PointF(rect.Left, rect.Bottom),
-                GradientStart, GradientEnd);
-            g.FillRectangle(gradient, rect);
-
-            float borderWidth = Math.Max(1f, 20f * scale);
-            using var border = new Pen(Color.White, borderWidth);
-            g.DrawRectangle(border,
-                rect.X + borderWidth / 2f, rect.Y + borderWidth / 2f,
-                rect.Width - borderWidth, rect.Height - borderWidth);
+            // Borderless flat tiles, like Win11's display settings (and the card chips);
+            // the surface gap between tiles keeps them distinct.
+            using GraphicsPath tile = ModernTheme.RoundedPath(rect, TileRadius);
+            using (var fill = new SolidBrush(monitor.IsPrimary ? ModernTheme.Accent : ModernTheme.TileFill))
+                g.FillPath(fill, tile);
 
             DrawIndex(g, monitor, rect);
         }
@@ -76,25 +89,26 @@ internal sealed class OverviewPanel : Panel
 
     private static void DrawIndex(Graphics g, MonitorInfo monitor, RectangleF rect)
     {
+        // Same fallback as the card chips, so tile and chip always cross-reference.
         const string prefix = @"\\.\DISPLAY";
         string index = monitor.DeviceName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
             ? monitor.DeviceName[prefix.Length..]
-            : "";
-        if (index.Length == 0)
-            return;
+            : "?";
 
-        // Scale the font so the index fills the tile, like the original.
-        const float probeSize = 100f;
-        using var probe = new Font("Arial", probeSize, GraphicsUnit.Pixel);
+        // Prominent but not tile-filling — the Windows 11 display-settings look.
+        float fontSize = rect.Height * 0.42f;
+        using var probe = ModernTheme.UiFontPx(fontSize, FontStyle.Bold);
         SizeF measured = g.MeasureString(index, probe);
-        float fontSize = probeSize * Math.Min(rect.Width / measured.Width, rect.Height / measured.Height);
+        if (measured.Width > rect.Width * 0.8f)
+            fontSize *= rect.Width * 0.8f / measured.Width;
 
-        using var font = new Font("Arial", Math.Max(4f, fontSize), GraphicsUnit.Pixel);
+        using Font font = ModernTheme.UiFontPx(Math.Max(6f, fontSize), FontStyle.Bold);
         using var format = new StringFormat
         {
             Alignment = StringAlignment.Center,
             LineAlignment = StringAlignment.Center,
         };
-        g.DrawString(index, font, Brushes.White, rect, format);
+        using var brush = new SolidBrush(monitor.IsPrimary ? Color.White : ModernTheme.TextPrimary);
+        g.DrawString(index, font, brush, rect, format);
     }
 }

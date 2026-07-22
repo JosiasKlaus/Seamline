@@ -3,6 +3,10 @@ ChangeDisplaySettingsEx
 DisplayConfigGetDeviceInfo
 DISPLAYCONFIG_TARGET_DEVICE_NAME
 DISPLAY_DEVICE_STATE_FLAGS
+DwmGetColorizationColor
+DwmSetWindowAttribute
+DWM_SYSTEMBACKDROP_TYPE
+DWM_WINDOW_CORNER_PREFERENCE
 EnumDisplayDevices
 EnumDisplaySettings
 GetDisplayConfigBufferSizes
