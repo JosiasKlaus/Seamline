@@ -1,4 +1,4 @@
-![Overlay Session](docs/seamline-banner.png)
+![Overlay Session](docs/banner.png)
 
 > Align your physical multi-monitor setup with Windows'virtual screen layout — pixel by pixel.
 
@@ -15,7 +15,7 @@ Windows lets you drag monitors around in the display settings, but getting the v
 
 Seamline fixes this by drawing reference lines across your monitors. You nudge each screen's position with the keyboard until the lines continue seamlessly across the bezels, then apply the layout to Windows — with an automatic 15-second rollback in case something goes wrong.
 
-![Overlay Session](docs/overlay-session.png)
+![Monitor Alignment](docs/alignment.png)
 
 ## How it works
 
@@ -56,7 +56,7 @@ dotnet publish src/App/Seamline.App.csproj -c Release -r win-x64 --self-containe
 
 Maintenance note: the self-contained exe bundles the .NET runtime, so releases should be rebuilt against the then-current LTS every ~3 years (next: retarget from .NET 10 by November 2028 — a one-line `TargetFramework` change) to keep shipping a security-patched runtime. A stale exe keeps *running*; it just stops receiving runtime fixes.
 
-See [REWRITE_PLAN.md](REWRITE_PLAN.md) for the architecture, behavioral spec, and roadmap.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how Seamline works inside, [docs/BEHAVIOR.md](docs/BEHAVIOR.md) for the exact behavioral contract, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for testing, releases, and the backlog.
 
 ## Acknowledgements
 
