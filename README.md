@@ -1,22 +1,13 @@
-<p align="center">
-  <!-- BRANDING: swap for docs/logo.png (wide logo + wordmark) when the new branding lands -->
-  <img src="src/App/Resources/seamline-256.png" width="96" alt="Seamline icon">
-</p>
+![Overlay Session](docs/seamline-banner.png)
 
-<h1 align="center">Seamline</h1>
+> Align your physical multi-monitor setup with Windows'virtual screen layout — pixel by pixel.
 
-<p align="center">
-  Align your physical multi-monitor setup with Windows' virtual screen layout — pixel by pixel.
-</p>
-
-<p align="center">
-  <a href="https://github.com/JosiasKlaus/Seamline/releases/latest"><img src="https://img.shields.io/github/v/release/JosiasKlaus/Seamline?label=download&color=0f7dc1" alt="Latest release"></a>
-  <a href="https://github.com/JosiasKlaus/Seamline/actions/workflows/ci.yml"><img src="https://github.com/JosiasKlaus/Seamline/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/JosiasKlaus/Seamline/releases"><img src="https://img.shields.io/github/downloads/JosiasKlaus/Seamline/total" alt="Downloads"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4" alt="Windows 10/11">
-  <img src="https://img.shields.io/badge/.NET-10%20LTS-512bd4" alt=".NET 10">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/JosiasKlaus/Seamline" alt="MIT license"></a>
-</p>
+[![Latest release](https://img.shields.io/github/v/release/JosiasKlaus/Seamline?label=download&color=0f7dc1&style=flat-square)](https://github.com/JosiasKlaus/Seamline/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/JosiasKlaus/Seamline/ci.yml?style=flat-square&label=CI)](https://github.com/JosiasKlaus/Seamline/actions/workflows/ci.yml)
+[![Downloads](https://img.shields.io/github/downloads/JosiasKlaus/Seamline/total?style=flat-square)](https://github.com/JosiasKlaus/Seamline/releases)
+![Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4?style=flat-square)
+![.NET 10](https://img.shields.io/badge/.NET-10%20LTS-512bd4?style=flat-square)
+[![MIT](https://img.shields.io/github/license/JosiasKlaus/Seamline?style=flat-square)](LICENSE)
 
 ---
 
@@ -24,19 +15,9 @@ Windows lets you drag monitors around in the display settings, but getting the v
 
 Seamline fixes this by drawing reference lines across your monitors. You nudge each screen's position with the keyboard until the lines continue seamlessly across the bezels, then apply the layout to Windows — with an automatic 15-second rollback in case something goes wrong.
 
-<!-- SCREENSHOT (hero): docs/alignment-photo.jpg — a photo of two monitors where the
-     alignment line continues across the physical bezel; photos beat screenshots here
-     because the bezel is the whole point. Uncomment when the file exists:
-<p align="center">
-  <img src="docs/alignment-photo.jpg" width="720" alt="Alignment lines continuing across the bezel of two monitors">
-</p>
--->
+![Overlay Session](docs/overlay-session.png)
 
 ## How it works
-
-<!-- SCREENSHOT: docs/main-window.png — the main window (dark mode looks best) -->
-<!-- SCREENSHOT: docs/overlay-session.png — full-desktop capture (Win+Shift+S) of an
-     alignment session: white overlays, lines, info box and control box visible -->
 
 1. **Adjust** opens a white overlay with alignment lines on every screen.
 2. Click the screen you want to move — a "Selected" badge marks it. The lines anchor to the primary monitor's row, or to the nearest neighbor when you select a screen in a different row.
@@ -79,8 +60,4 @@ See [REWRITE_PLAN.md](REWRITE_PLAN.md) for the architecture, behavioral spec, an
 
 ## Acknowledgements
 
-Seamline is a from-scratch, behavior-compatible rewrite of [HwMonitorAlignment](https://github.com/Chrisg2000/HwMonitorAlignment) by Chrisg2000 — a great tool whose Python 3.9 / PySide2 foundation made it increasingly hard to keep running. Seamline replicates its behavior but shares no code with it; the original project and its releases remain under their own GPL license.
-
-## License
-
-[MIT](LICENSE)
+Seamline was heavily inspired by [HwMonitorAlignment](https://github.com/Chrisg2000/HwMonitorAlignment) by Chrisg2000. Seamline replicates its behavior but shares no code with it; the original project and its releases remain under their own GPL license.
