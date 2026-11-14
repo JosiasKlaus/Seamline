@@ -27,6 +27,7 @@ use the pipe form, a plain `>` captures nothing from a windowed exe):
 | `--overlaycheck` | Start a session, verify every overlay covers its monitor exactly (bounds; per-monitor DPI printed for inspection), abort, exit 0/4 |
 | `--move <device> <dx> <dy>` | Stage+commit a move, verify, revert (e.g. `--move \\.\DISPLAY2 10 0`) |
 | `--align` | Run an alignment session without the main window |
+| `--smoketest` | Normal GUI launch that closes itself once the main window has rendered; exit 0, or 5 if nothing rendered within 30 s. The only flag that loads WPF — CI runs it against the published exe |
 
 ## Hardware testing
 
@@ -49,9 +50,19 @@ return codes) — re-enumerate to see what actually happened.
 ## Release pipeline
 
 Pushing a tag `v*` runs `.github/workflows/release.yml`: test → publish
-(single-file, self-contained, **version derived from the tag**) → SHA-256
-(LF-only, `sha256sum -c` compatible) → GitHub release with both assets.
-CI (`ci.yml`) builds and tests on pushes to `main` and PRs.
+(single-file, self-contained, **version derived from the tag**) → smoke test
+→ SHA-256 (LF-only, `sha256sum -c` compatible) → GitHub release with both
+assets. CI (`ci.yml`) builds, tests, publishes and smoke-tests on pushes to
+`main` and PRs.
+
+The release is **the exe alone**, so it must be complete on its own.
+`PublishSingleFile` bundles managed assemblies only; WPF's native libraries
+are embedded via `IncludeNativeLibrariesForSelfExtract` in the App project
+(they self-extract to `%TEMP%\.net` on first launch). Without it they land
+next to the exe in `publish/`, never reach the release, and the exe crashes
+at startup — v1.0.0 shipped that way. The smoke test guards this: it copies
+the exe into an empty folder and runs `--smoketest`. Keep that step if the
+pipeline changes, and never test from inside `publish/`.
 
 The exe is unsigned; SmartScreen shows its interstitial until the file hash
 accrues reputation. Revisit code-signing only if AV false positives become a

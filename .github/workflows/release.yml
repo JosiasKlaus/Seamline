@@ -23,6 +23,17 @@ jobs:
           # The tag is the single source of truth for the release version.
           $version = $env:GITHUB_REF_NAME.TrimStart('v')
           dotnet publish src/App/Seamline.App.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:Version=$version -o publish
+      - name: Smoke-test the published exe
+        shell: pwsh
+        run: |
+          # The release ships seamline.exe ALONE, so test it alone: copied out of
+          # publish/, where leftover side-by-side files would mask a missing one.
+          $dir = New-Item -ItemType Directory -Force (Join-Path $env:RUNNER_TEMP 'smoke')
+          Copy-Item publish/seamline.exe $dir
+          $p = Start-Process (Join-Path $dir 'seamline.exe') -ArgumentList '--smoketest' -PassThru
+          $null = $p.Handle # cache the handle, or ExitCode stays empty after exit
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'Smoke test timed out.' }
+          if ($p.ExitCode -ne 0) { throw "Smoke test failed with exit code $($p.ExitCode)." }
       - name: Hash
         shell: pwsh
         run: |

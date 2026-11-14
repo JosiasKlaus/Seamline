@@ -19,7 +19,7 @@ dotnet run --project src/App/Seamline.App.csproj -c Release
 ```
 
 Headless verification on real hardware (PowerShell: pipe output, a plain `>`
-captures nothing from a WinExe): `--dump`, `--dpicheck`, `--overlaycheck`,
+captures nothing from a WinExe): `--dump`, `--dpicheck`, `--overlaycheck`, `--smoketest`,
 `--move <device> <dx> <dy>`, `--align`. Run `--overlaycheck` after touching
 anything DPI- or overlay-related; run `--dump` before assuming a monitor
 layout — it changes between sessions.

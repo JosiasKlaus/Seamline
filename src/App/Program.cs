@@ -34,16 +34,26 @@ internal static class Program
         if (args.Contains("--align") || args.Contains("--overlaycheck"))
             return RunAlignSession(backend, verifyOnly: args.Contains("--overlaycheck"));
 
+        // Packaging smoke test: the normal GUI launch, closed again as soon as the
+        // main window has rendered its first frame. Exists to catch a published exe
+        // that cannot start (v1.0.0 shipped without WPF's native libraries) - every
+        // other headless flag returns before WPF loads and cannot see that.
+        bool smokeTest = args.Contains("--smoketest");
+
         var layout = new MonitorLayout();
         layout.ResetTo(backend.EnumerateMonitors());
         if (layout.Count == 0)
         {
-            MessageBox.Show("Seamline could not find any monitors.", "Seamline",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (smokeTest)
+                Console.WriteLine("no monitors found"); // a modal box would hang CI
+            else
+                MessageBox.Show("Seamline could not find any monitors.", "Seamline",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 3;
         }
         var controller = new AlignController(backend, layout);
-        var coordinator = new AlignSessionCoordinator(controller, layout);
+        // A smoke test must not touch %APPDATA% as a side effect.
+        var coordinator = new AlignSessionCoordinator(controller, layout, persistSettings: !smokeTest);
 
         // M8: WPF-Fluent shell for the main window. The WinForms session overlays
         // and dialogs run unchanged on this same STA thread — the WPF dispatcher
@@ -62,7 +72,21 @@ internal static class Program
 #pragma warning disable WPF0001 // experimental Fluent ThemeMode API, accepted for M8 (like WFO5001 for M7)
         app.ThemeMode = System.Windows.ThemeMode.System;
 #pragma warning restore WPF0001
-        return app.Run(new MainWindow(backend, layout, controller, coordinator));
+        var window = new MainWindow(backend, layout, controller, coordinator);
+        if (smokeTest)
+        {
+            // ContentRendered = HWND created, layout done, first frame composed:
+            // the whole managed + native WPF stack has loaded by then.
+            window.ContentRendered += (_, _) => window.Close();
+            // Never hang a pipeline: a window that does not render is a failure.
+            var watchdog = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(30),
+            };
+            watchdog.Tick += (_, _) => app.Shutdown(5);
+            watchdog.Start();
+        }
+        return app.Run(window);
     }
 
     private static int RunAlignSession(IDisplayBackend backend, bool verifyOnly)

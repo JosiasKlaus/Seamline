@@ -17,3 +17,18 @@ jobs:
         run: dotnet build Seamline.slnx --configuration Release
       - name: Test
         run: dotnet test Seamline.slnx --configuration Release --no-build
+      # Same publish + smoke test as release.yml, so a packaging break shows up
+      # on the PR instead of in a shipped release.
+      - name: Publish
+        run: dotnet publish src/App/Seamline.App.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish
+      - name: Smoke-test the published exe
+        shell: pwsh
+        run: |
+          # The release ships seamline.exe ALONE, so test it alone: copied out of
+          # publish/, where leftover side-by-side files would mask a missing one.
+          $dir = New-Item -ItemType Directory -Force (Join-Path $env:RUNNER_TEMP 'smoke')
+          Copy-Item publish/seamline.exe $dir
+          $p = Start-Process (Join-Path $dir 'seamline.exe') -ArgumentList '--smoketest' -PassThru
+          $null = $p.Handle # cache the handle, or ExitCode stays empty after exit
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'Smoke test timed out.' }
+          if ($p.ExitCode -ne 0) { throw "Smoke test failed with exit code $($p.ExitCode)." }
